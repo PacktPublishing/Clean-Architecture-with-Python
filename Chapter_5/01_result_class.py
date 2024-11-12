@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Any, Optional
 
-from Chapter_5.ToDoApp.todo_app.application.common.result import Error
+from Chapter_5.TodoApp.todo_app.application.common.result import Error
 
 
 @dataclass(frozen=True)

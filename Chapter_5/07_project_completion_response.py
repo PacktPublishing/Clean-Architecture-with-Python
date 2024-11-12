@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Optional, Self
 
-from Chapter_5.ToDoApp.todo_app.domain.entities.project import Project
+from Chapter_5.TodoApp.todo_app.domain.entities.project import Project
 
 
 class UserService:

@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 from typing import Sequence
 from uuid import UUID
 
-from Chapter_5.ToDoApp.todo_app.domain.entities.task import Task
+from Chapter_5.TodoApp.todo_app.domain.entities.task import Task
 
 
 class TaskRepository(ABC):
@@ -58,5 +58,15 @@ class TaskRepository(ABC):
 
         Returns:
             A sequence of Task entities belonging to the project
+        """
+        pass
+
+    @abstractmethod
+    def get_active_tasks(self) -> Sequence[Task]:
+        """
+        Retrieve all active tasks in the repository.
+
+        Returns:
+            A sequence of all active Tasks
         """
         pass

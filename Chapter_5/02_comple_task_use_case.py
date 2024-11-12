@@ -2,11 +2,11 @@ from dataclasses import dataclass
 from typing import Optional
 from uuid import UUID
 
-from Chapter_5.ToDoApp.todo_app.application.common.result import Result, Error
-from Chapter_5.ToDoApp.todo_app.application.repositories.task_repository import (
+from Chapter_5.TodoApp.todo_app.application.common.result import Result, Error
+from Chapter_5.TodoApp.todo_app.application.repositories.task_repository import (
     TaskRepository,
 )
-from Chapter_5.ToDoApp.todo_app.domain.exceptions import (
+from Chapter_5.TodoApp.todo_app.domain.exceptions import (
     TaskNotFoundError,
     ValidationError,
 )

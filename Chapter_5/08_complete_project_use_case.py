@@ -1,14 +1,14 @@
 from dataclasses import dataclass
 
-from Chapter_5.ToDoApp.todo_app.application.common.result import Result, Error
-from Chapter_5.ToDoApp.todo_app.application.dtos.project_dtos import (
+from Chapter_5.TodoApp.todo_app.application.common.result import Result, Error
+from Chapter_5.TodoApp.todo_app.application.dtos.project_dtos import (
     CompleteProjectRequest,
     ProjectCompletionResponse,
 )
-from Chapter_5.ToDoApp.todo_app.application.repositories.project_repository import (
+from Chapter_5.TodoApp.todo_app.application.repositories.project_repository import (
     ProjectRepository,
 )
-from Chapter_5.ToDoApp.todo_app.domain.exceptions import (
+from Chapter_5.TodoApp.todo_app.domain.exceptions import (
     ValidationError,
     ProjectNotFoundError,
 )

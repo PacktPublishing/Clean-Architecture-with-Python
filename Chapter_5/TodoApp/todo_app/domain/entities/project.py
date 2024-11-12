@@ -3,9 +3,9 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
-from Chapter_4.TodoApp.todo_app.domain.entities.entity import Entity
-from Chapter_4.TodoApp.todo_app.domain.entities.task import Task
-from Chapter_5.ToDoApp.todo_app.domain.value_objects import (
+from Chapter_5.TodoApp.todo_app.domain.entities.entity import Entity
+from Chapter_5.TodoApp.todo_app.domain.entities.task import Task
+from Chapter_5.TodoApp.todo_app.domain.value_objects import (
     TaskStatus,
     ProjectStatus,
 )
@@ -54,16 +54,7 @@ class Project(Entity):
 
         Args:
             notes: Optional completion notes
-
-        Raises:
-            ValueError: If the project has incomplete tasks or is already completed
         """
-        if self.status == ProjectStatus.COMPLETED:
-            raise ValueError("Project is already completed")
-
-        if self.incomplete_tasks:
-            raise ValueError("Cannot complete project with incomplete tasks")
-
         self.status = ProjectStatus.COMPLETED
         self.completed_at = datetime.now()
         self.completion_notes = notes

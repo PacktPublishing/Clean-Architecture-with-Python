@@ -8,8 +8,8 @@ from datetime import datetime
 from typing import Optional, Self
 from uuid import UUID
 
-from Chapter_5.ToDoApp.todo_app.domain.entities.task import Task
-from Chapter_5.ToDoApp.todo_app.domain.value_objects import Deadline, Priority
+from Chapter_5.TodoApp.todo_app.domain.entities.task import Task
+from Chapter_5.TodoApp.todo_app.domain.value_objects import Deadline, Priority
 
 
 @dataclass(frozen=True)
@@ -25,6 +25,10 @@ class CompleteTaskRequest:
             raise ValueError("Task ID is required")
         if self.completion_notes and len(self.completion_notes) > 1000:
             raise ValueError("Completion notes cannot exceed 1000 characters")
+        try:
+            UUID(self.task_id)
+        except ValueError:
+            raise ValueError("Invalid task ID format")
 
     def to_execution_params(self) -> dict:
         """Convert request data to use case parameters."""
@@ -52,6 +56,11 @@ class CreateTaskRequest:
             raise ValueError("Title cannot exceed 200 characters")
         if len(self.description) > 2000:
             raise ValueError("Description cannot exceed 2000 characters")
+        if self.project_id:
+            try:
+                UUID(self.project_id)
+            except ValueError:
+                raise ValueError("Invalid project ID format")
 
     def to_execution_params(self) -> dict:
         """Convert request data to use case parameters."""
@@ -84,6 +93,7 @@ class TaskResponse:
     due_date: Optional[str] = None
     project_id: Optional[str] = None
     completion_date: Optional[str] = None
+    completion_notes: Optional[str] = None
 
     @classmethod
     def from_entity(cls, task: Task) -> Self:
@@ -101,6 +111,7 @@ class TaskResponse:
             completion_date=(
                 task.completed_at.isoformat() if task.completed_at else None
             ),
+            completion_notes=task.completion_notes,
         )
 
 
@@ -126,6 +137,10 @@ class SetTaskPriorityRequest:
             raise ValueError(
                 f"Priority must be one of: {', '.join(p.name for p in Priority)}"
             )
+        try:
+            UUID(self.task_id)
+        except ValueError:
+            raise ValueError("Invalid task ID format")
 
     def to_execution_params(self) -> dict:
         """Convert request data to use case parameters."""

@@ -7,8 +7,8 @@ from dataclasses import dataclass
 from typing import Optional, Sequence, Self
 from uuid import UUID
 
-from Chapter_5.ToDoApp.todo_app.application.dtos.task_dtos import TaskResponse
-from Chapter_5.ToDoApp.todo_app.domain.entities.project import Project
+from Chapter_5.TodoApp.todo_app.application.dtos.task_dtos import TaskResponse
+from Chapter_5.TodoApp.todo_app.domain.entities.project import Project
 
 
 @dataclass(frozen=True)
@@ -48,6 +48,10 @@ class CompleteProjectRequest:
             raise ValueError("Project ID is required")
         if self.completion_notes and len(self.completion_notes) > 1000:
             raise ValueError("Completion notes cannot exceed 1000 characters")
+        try:
+            UUID(self.project_id)
+        except ValueError:
+            raise ValueError("Invalid project ID format")
 
     def to_execution_params(self) -> dict:
         """Convert request data to use case parameters."""
@@ -68,7 +72,7 @@ class ProjectResponse:
     tasks: Sequence[TaskResponse]
 
     @classmethod
-    def from_entity(cls, project: Project) -> "ProjectResponse":
+    def from_entity(cls, project: Project) -> Self:
         """Create response from a Project entity."""
         return cls(
             id=str(project.id),
