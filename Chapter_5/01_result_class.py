@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any, Optional, Self
 
 from Chapter_5.TodoApp.todo_app.application.common.result import Error
 
@@ -16,11 +16,11 @@ class Result:
         return self.error is None
 
     @classmethod
-    def success(cls, value: Any) -> "Result":
+    def success(cls, value: Any) -> Self:
         return cls(value=value)
 
     @classmethod
-    def failure(cls, error: Error) -> "Result":
+    def failure(cls, error: Error) -> Self:
         return cls(error=error)
 
 

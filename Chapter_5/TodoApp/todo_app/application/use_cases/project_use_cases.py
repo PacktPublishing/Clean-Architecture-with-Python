@@ -10,7 +10,7 @@ from Chapter_5.TodoApp.todo_app.application.dtos.project_dtos import (
     CreateProjectRequest,
     ProjectResponse,
     CompleteProjectRequest,
-    ProjectCompletionResponse,
+    CompleteProjectResponse,
 )
 from Chapter_5.TodoApp.todo_app.application.ports.notifications import (
     NotificationPort,
@@ -88,7 +88,7 @@ class CompleteProjectUseCase:
                 for task in project_snapshot.incomplete_tasks:
                     self.notification_service.notify_task_completed(task.id)
                 return Result.success(
-                    ProjectCompletionResponse.from_entity(project)
+                    CompleteProjectResponse.from_entity(project)
                 )
 
             except (ValidationError, BusinessRuleViolation) as e:

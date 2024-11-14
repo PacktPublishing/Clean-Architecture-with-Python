@@ -1,12 +1,16 @@
 from dataclasses import dataclass
+from uuid import UUID
 
 from Chapter_5.TodoApp.todo_app.application.common.result import Result, Error
 from Chapter_5.TodoApp.todo_app.application.dtos.project_dtos import (
     CompleteProjectRequest,
-    ProjectCompletionResponse,
+    CompleteProjectResponse,
 )
 from Chapter_5.TodoApp.todo_app.application.repositories.project_repository import (
     ProjectRepository,
+)
+from Chapter_5.TodoApp.todo_app.application.repositories.task_repository import (
+    TaskRepository,
 )
 from Chapter_5.TodoApp.todo_app.domain.exceptions import (
     ValidationError,
@@ -14,23 +18,31 @@ from Chapter_5.TodoApp.todo_app.domain.exceptions import (
 )
 
 
+class NotificationService:
+    """Stub to make mypy happy"""
+
+    def notify_task_completed(self, task_id: UUID) -> None:
+        pass
+
+
 @dataclass
 class CompleteProjectUseCase:
-    """Use case for marking a project as complete."""
-
     project_repository: ProjectRepository
+    task_repository: TaskRepository
+    notification_service: NotificationService
 
     def execute(self, request: CompleteProjectRequest) -> Result:
-        """Execute the use case."""
         try:
             params = request.to_execution_params()
-
             project = self.project_repository.get(params["project_id"])
             project.mark_completed(notes=params["completion_notes"])
 
+            # Complete all outstanding tasks
+            # ... Truncated for brevity
+
             self.project_repository.save(project)
 
-            response = ProjectCompletionResponse.from_entity(project)
+            response = CompleteProjectResponse.from_entity(project)
             return Result.success(response)
 
         except ProjectNotFoundError:

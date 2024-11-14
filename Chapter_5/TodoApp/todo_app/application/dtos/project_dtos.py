@@ -84,7 +84,7 @@ class ProjectResponse:
 
 
 @dataclass(frozen=True)
-class ProjectCompletionResponse:
+class CompleteProjectResponse:
     """Response data specific to project completion."""
 
     id: str

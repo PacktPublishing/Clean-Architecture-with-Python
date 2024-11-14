@@ -26,7 +26,7 @@ class NotificationService:
 
 
 @dataclass(frozen=True)
-class ProjectCompletionUseCase:
+class CompleteProjectUseCase:
     project_repository: ProjectRepository
     task_repository: TaskRepository
     notification_service: NotificationService

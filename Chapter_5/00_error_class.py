@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
+from typing import Optional, Any
 
 
 class ErrorCode(Enum):
@@ -15,7 +15,7 @@ class Error:
 
     code: ErrorCode
     message: str
-    details: Optional[dict] = None
+    details: Optional[dict[str, Any]] = None
 
     @classmethod
     def not_found(cls, entity: str, entity_id: str) -> "Error":
