@@ -7,8 +7,8 @@ from dataclasses import dataclass
 from typing import Optional, Sequence, Self
 from uuid import UUID
 
-from Chapter_5.TodoApp.todo_app.application.dtos.task_dtos import TaskResponse
-from Chapter_5.TodoApp.todo_app.domain.entities.project import Project
+from todo_app.application.dtos.task_dtos import TaskResponse
+from todo_app.domain.entities.project import Project
 
 
 @dataclass(frozen=True)

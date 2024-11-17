@@ -5,26 +5,26 @@ from uuid import uuid4
 
 import pytest
 
-from Chapter_5.TodoApp.todo_app.application.common.result import ErrorCode
-from Chapter_5.TodoApp.todo_app.application.dtos.project_dtos import (
+from todo_app.application.common.result import ErrorCode
+from todo_app.application.dtos.project_dtos import (
     CreateProjectRequest,
     CompleteProjectRequest,
 )
-from Chapter_5.TodoApp.todo_app.application.use_cases.project_use_cases import (
+from todo_app.application.use_cases.project_use_cases import (
     CreateProjectUseCase,
     CompleteProjectUseCase,
 )
-from Chapter_5.TodoApp.todo_app.domain.entities.project import Project
-from Chapter_5.TodoApp.todo_app.domain.entities.task import Task
-from Chapter_5.TodoApp.todo_app.domain.exceptions import (
+from todo_app.domain.entities.project import Project
+from todo_app.domain.entities.task import Task
+from todo_app.domain.exceptions import (
     BusinessRuleViolation,
     ValidationError,
 )
-from Chapter_5.TodoApp.todo_app.domain.value_objects import (
+from todo_app.domain.value_objects import (
     ProjectStatus,
     TaskStatus,
 )
-from Chapter_5.TodoApp.todo_app.tests.application.conftest import (
+from todo_app.tests.application.conftest import (
     InMemoryProjectRepository,
     InMemoryTaskRepository,
     NotificationRecorder,

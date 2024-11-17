@@ -5,6 +5,11 @@ from uuid import uuid4
 
 import pytest
 
+from Chapter_5.TodoApp.tests.application.conftest import (
+    InMemoryTaskRepository,
+    InMemoryProjectRepository,
+    NotificationRecorder,
+)
 from Chapter_5.TodoApp.todo_app.application.common.result import ErrorCode
 from Chapter_5.TodoApp.todo_app.application.dtos.task_dtos import (
     CreateTaskRequest,
@@ -23,11 +28,6 @@ from Chapter_5.TodoApp.todo_app.domain.exceptions import (
     ValidationError,
 )
 from Chapter_5.TodoApp.todo_app.domain.value_objects import Priority, TaskStatus
-from Chapter_5.TodoApp.todo_app.tests.application.conftest import (
-    InMemoryTaskRepository,
-    InMemoryProjectRepository,
-    NotificationRecorder,
-)
 
 
 def test_create_task_basic():

@@ -1,0 +1,1701 @@
+<file_start>todo_app/application/repositories/project_repository.py</file_start>
+"""
+This module defines the repository interface for Project entity persistence.
+"""
+
+from abc import ABC, abstractmethod
+from uuid import UUID
+
+from todo_app.domain.entities.project import Project
+
+
+class ProjectRepository(ABC):
+    """Repository interface for Project entity persistence."""
+
+    @abstractmethod
+    def get(self, project_id: UUID) -> Project:
+        """
+        Retrieve a project by its ID.
+
+        Args:
+            project_id: The unique identifier of the project
+
+        Returns:
+            The requested Project entity
+
+        Raises:
+            ProjectNotFoundError: If no project exists with the given ID
+        """
+        pass
+
+    @abstractmethod
+    def save(self, project: Project) -> None:
+        """
+        Save a project to the repository.
+
+        Args:
+            project: The Project entity to save
+        """
+        pass
+
+    @abstractmethod
+    def delete(self, project_id: UUID) -> None:
+        """
+        Delete a project from the repository.
+
+        Args:
+            project_id: The unique identifier of the project to delete
+        """
+        pass
+
+<file_end>todo_app/application/repositories/project_repository.py</file_end>
+
+<file_start>todo_app/application/repositories/task_repository.py</file_start>
+"""
+This module defines the repository interface for Task entity persistence.
+"""
+
+from abc import ABC, abstractmethod
+from typing import Sequence
+from uuid import UUID
+
+from todo_app.domain.entities.task import Task
+
+
+class TaskRepository(ABC):
+    """Repository interface for Task entity persistence."""
+
+    @abstractmethod
+    def get(self, task_id: UUID) -> Task:
+        """
+        Retrieve a task by its ID.
+
+        Args:
+            task_id: The unique identifier of the task
+
+        Returns:
+            The requested Task entity
+
+        Raises:
+            TaskNotFoundError: If no task exists with the given ID
+        """
+        pass
+
+    @abstractmethod
+    def save(self, task: Task) -> None:
+        """
+        Save a task to the repository.
+
+        Args:
+            task: The Task entity to save
+        """
+        pass
+
+    @abstractmethod
+    def delete(self, task_id: UUID) -> None:
+        """
+        Delete a task from the repository.
+
+        Args:
+            task_id: The unique identifier of the task to delete
+        """
+        pass
+
+    @abstractmethod
+    def find_by_project(self, project_id: UUID) -> Sequence[Task]:
+        """
+        Find all tasks associated with a project.
+
+        Args:
+            project_id: The unique identifier of the project
+
+        Returns:
+            A sequence of Task entities belonging to the project
+        """
+        pass
+
+    @abstractmethod
+    def get_active_tasks(self) -> Sequence[Task]:
+        """
+        Retrieve all active tasks in the repository.
+
+        Returns:
+            A sequence of all active Tasks
+        """
+        pass
+
+<file_end>todo_app/application/repositories/task_repository.py</file_end>
+
+<file_start>todo_app/application/dtos/task_dtos.py</file_start>
+"""
+This module contains request and response data transfer objects (DTOs) for task operations.
+These DTOs handle data transformation between the outer layers and the application core.
+"""
+
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Optional, Self
+from uuid import UUID
+
+from todo_app.domain.entities.task import Task
+from todo_app.domain.value_objects import Deadline, Priority
+
+
+@dataclass(frozen=True)
+class CompleteTaskRequest:
+    """Request data for completing a task."""
+
+    task_id: str
+    completion_notes: Optional[str] = None
+
+    def __post_init__(self) -> None:
+        """Validate request data"""
+        if not self.task_id.strip():
+            raise ValueError("Task ID is required")
+        if self.completion_notes and len(self.completion_notes) > 1000:
+            raise ValueError("Completion notes cannot exceed 1000 characters")
+        try:
+            UUID(self.task_id)
+        except ValueError:
+            raise ValueError("Invalid task ID format")
+
+    def to_execution_params(self) -> dict:
+        """Convert request data to use case parameters."""
+        return {
+            "task_id": UUID(self.task_id),
+            "completion_notes": self.completion_notes,
+        }
+
+
+@dataclass(frozen=True)
+class CreateTaskRequest:
+    """Request data for creating a new task."""
+
+    title: str
+    description: str
+    due_date: Optional[str] = None
+    priority: Optional[str] = None
+    project_id: Optional[str] = None
+
+    def __post_init__(self) -> None:
+        """Validate request data"""
+        if not self.title.strip():
+            raise ValueError("Title is required")
+        if len(self.title) > 200:
+            raise ValueError("Title cannot exceed 200 characters")
+        if len(self.description) > 2000:
+            raise ValueError("Description cannot exceed 2000 characters")
+        if self.project_id:
+            try:
+                UUID(self.project_id)
+            except ValueError:
+                raise ValueError("Invalid project ID format")
+
+    def to_execution_params(self) -> dict:
+        """Convert request data to use case parameters."""
+        params = {
+            "title": self.title.strip(),
+            "description": self.description.strip(),
+        }
+
+        if self.due_date:
+            params["deadline"] = Deadline(datetime.fromisoformat(self.due_date))
+
+        if self.priority:
+            params["priority"] = Priority[self.priority.upper()]
+
+        if self.project_id:
+            params["project_id"] = UUID(self.project_id)
+
+        return params
+
+
+@dataclass(frozen=True)
+class TaskResponse:
+    """Response data for task operations."""
+
+    id: str
+    title: str
+    description: str
+    status: str
+    priority: int
+    due_date: Optional[str] = None
+    project_id: Optional[str] = None
+    completion_date: Optional[str] = None
+    completion_notes: Optional[str] = None
+
+    @classmethod
+    def from_entity(cls, task: Task) -> Self:
+        """Create response from a Task entity."""
+        return cls(
+            id=str(task.id),
+            title=task.title,
+            description=task.description,
+            status=task.status.value,
+            priority=task.priority.value,
+            due_date=(
+                task.due_date.due_date.isoformat() if task.due_date else None
+            ),
+            project_id=str(task.project_id) if task.project_id else None,
+            completion_date=(
+                task.completed_at.isoformat() if task.completed_at else None
+            ),
+            completion_notes=task.completion_notes,
+        )
+
+
+@dataclass(frozen=True)
+class SetTaskPriorityRequest:
+    """Request data for updating task priority."""
+
+    task_id: str
+    priority: str
+
+    def __post_init__(self) -> None:
+        """Validate request data"""
+        if not self.task_id.strip():
+            raise ValueError("Task ID is required")
+
+        try:
+            priority_value = self.priority.strip().upper()
+            if not priority_value:
+                raise ValueError
+            if priority_value not in [p.name for p in Priority]:
+                raise ValueError
+        except (AttributeError, ValueError):
+            raise ValueError(
+                f"Priority must be one of: {', '.join(p.name for p in Priority)}"
+            )
+        try:
+            UUID(self.task_id)
+        except ValueError:
+            raise ValueError("Invalid task ID format")
+
+    def to_execution_params(self) -> dict:
+        """Convert request data to use case parameters."""
+        return {
+            "task_id": UUID(self.task_id),
+            "priority": Priority[self.priority.upper()],
+        }
+
+<file_end>todo_app/application/dtos/task_dtos.py</file_end>
+
+<file_start>todo_app/application/dtos/project_dtos.py</file_start>
+"""
+This module contains request and response data transfer objects (DTOs) for project operations.
+These DTOs handle data transformation between the outer layers and the application core.
+"""
+
+from dataclasses import dataclass
+from typing import Optional, Sequence, Self
+from uuid import UUID
+
+from todo_app.application.dtos.task_dtos import TaskResponse
+from todo_app.domain.entities.project import Project
+
+
+@dataclass(frozen=True)
+class CreateProjectRequest:
+    """Request data for creating a new project."""
+
+    name: str
+    description: str = ""
+
+    def __post_init__(self) -> None:
+        """Validate request data"""
+        if not self.name.strip():
+            raise ValueError("Project name is required")
+        if len(self.name) > 100:
+            raise ValueError("Project name cannot exceed 100 characters")
+        if len(self.description) > 2000:
+            raise ValueError("Description cannot exceed 2000 characters")
+
+    def to_execution_params(self) -> dict:
+        """Convert request data to use case parameters."""
+        return {
+            "name": self.name.strip(),
+            "description": self.description.strip(),
+        }
+
+
+@dataclass(frozen=True)
+class CompleteProjectRequest:
+    """Request data for completing a project."""
+
+    project_id: str
+    completion_notes: Optional[str] = None
+
+    def __post_init__(self) -> None:
+        """Validate request data"""
+        if not self.project_id.strip():
+            raise ValueError("Project ID is required")
+        if self.completion_notes and len(self.completion_notes) > 1000:
+            raise ValueError("Completion notes cannot exceed 1000 characters")
+        try:
+            UUID(self.project_id)
+        except ValueError:
+            raise ValueError("Invalid project ID format")
+
+    def to_execution_params(self) -> dict:
+        """Convert request data to use case parameters."""
+        return {
+            "project_id": UUID(self.project_id),
+            "completion_notes": self.completion_notes,
+        }
+
+
+@dataclass(frozen=True)
+class ProjectResponse:
+    """Response data for basic project operations."""
+
+    id: str
+    name: str
+    description: str
+    status: str
+    completion_date: Optional[str]
+    tasks: Sequence[TaskResponse]
+
+    @classmethod
+    def from_entity(cls, project: Project) -> Self:
+        """Create response from a Project entity."""
+        return cls(
+            id=str(project.id),
+            name=project.name,
+            description=project.description,
+            status=project.status.value,
+            completion_date=project.completed_at.isoformat() if project.completed_at else None,
+            tasks=[TaskResponse.from_entity(task) for task in project.tasks],
+        )
+
+
+@dataclass(frozen=True)
+class CompleteProjectResponse:
+    """Response data specific to project completion."""
+
+    id: str
+    status: str
+    completion_date: str
+    task_count: int
+    completion_notes: Optional[str]
+
+    @classmethod
+    def from_entity(cls, project: Project) -> Self:
+        """Create response from a Project entity."""
+        return cls(
+            id=str(project.id),
+            status=project.status.value,
+            completion_date=project.completed_at.isoformat(),
+            task_count=len(project.tasks),
+            completion_notes=project.completion_notes,
+        )
+
+<file_end>todo_app/application/dtos/project_dtos.py</file_end>
+
+<file_start>todo_app/application/common/result.py</file_start>
+"""
+This module contains the core error handling and result types for the application layer.
+These types provide a consistent way to handle success and failure cases across all use cases.
+"""
+
+from dataclasses import dataclass
+from enum import Enum
+from typing import Any, Optional, Self
+
+
+class ErrorCode(Enum):
+    """Enumeration of possible error codes in the application layer."""
+
+    NOT_FOUND = "NOT_FOUND"
+    VALIDATION_ERROR = "VALIDATION_ERROR"
+    BUSINESS_RULE_VIOLATION = "BUSINESS_RULE_VIOLATION"
+    UNAUTHORIZED = "UNAUTHORIZED"
+    CONFLICT = "CONFLICT"
+
+
+@dataclass(frozen=True)
+class Error:
+    """
+    Represents an error that occurred during use case execution.
+
+    This class provides a standardized way to represent errors across the application layer,
+    including the specific type of error (via ErrorCode) and any additional context.
+
+    Attributes:
+        code: The type of error that occurred
+        message: A human-readable description of the error
+        details: Optional additional context about the error
+    """
+
+    code: ErrorCode
+    message: str
+    details: Optional[dict[str, Any]] = None
+
+    @classmethod
+    def not_found(cls, entity: str, entity_id: str) -> Self:
+        """Create a NOT_FOUND error for a specific entity."""
+        return cls(
+            code=ErrorCode.NOT_FOUND,
+            message=f"{entity} with id {entity_id} not found",
+        )
+
+    @classmethod
+    def validation_error(cls, message: str) -> Self:
+        """Create a VALIDATION_ERROR with the specified message."""
+        return cls(code=ErrorCode.VALIDATION_ERROR, message=message)
+
+    @classmethod
+    def business_rule_violation(cls, message: str) -> Self:
+        """Create a BUSINESS_RULE_VIOLATION error with the specified message."""
+        return cls(code=ErrorCode.BUSINESS_RULE_VIOLATION, message=message)
+
+
+@dataclass(frozen=True)
+class Result:
+    """
+    Represents the outcome of a use case execution, either success or failure.
+
+    This class provides a way to handle both successful and failed outcomes,
+    ensuring that error handling is explicit and consistent across the application layer.
+
+    Attributes:
+        value: The success value (if successful)
+        error: The error details (if failed)
+    """
+
+    value: Any = None
+    error: Optional[Error] = None
+
+    @property
+    def is_success(self) -> bool:
+        """Check if the result represents a successful operation."""
+        return self.error is None
+
+    @classmethod
+    def success(cls, value: Any) -> Self:
+        """Create a successful result with the given value."""
+        return cls(value=value)
+
+    @classmethod
+    def failure(cls, error: Error) -> Self:
+        """Create a failed result with the given error."""
+        return cls(error=error)
+
+<file_end>todo_app/application/common/result.py</file_end>
+
+<file_start>todo_app/application/use_cases/task_use_cases.py</file_start>
+"""
+This module contains use cases for task operations.
+"""
+
+from copy import deepcopy
+from dataclasses import dataclass
+
+from todo_app.application.common.result import Result, Error
+from todo_app.application.dtos.task_dtos import (
+    CompleteTaskRequest,
+    CreateTaskRequest,
+    TaskResponse,
+    SetTaskPriorityRequest,
+)
+from todo_app.application.ports.notifications import (
+    NotificationPort,
+)
+from todo_app.application.repositories.project_repository import (
+    ProjectRepository,
+)
+from todo_app.application.repositories.task_repository import (
+    TaskRepository,
+)
+from todo_app.domain.entities.task import Task
+from todo_app.domain.exceptions import (
+    TaskNotFoundError,
+    ProjectNotFoundError,
+    ValidationError,
+    BusinessRuleViolation,
+)
+from todo_app.domain.value_objects import Priority
+
+
+@dataclass
+class CompleteTaskUseCase:
+    """Use case for marking a task as complete and notifying stakeholders."""
+
+    task_repository: TaskRepository
+    notification_service: NotificationPort
+
+    def execute(self, request: CompleteTaskRequest) -> Result:
+        """Execute the use case."""
+        try:
+            params = request.to_execution_params()
+            task = self.task_repository.get(params["task_id"])
+
+            # Take snapshot of initial state
+            task_snapshot = deepcopy(task)
+
+            try:
+                task.complete(notes=params["completion_notes"])
+                self.task_repository.save(task)
+                self.notification_service.notify_task_completed(task.id)
+
+                return Result.success(TaskResponse.from_entity(task))
+
+            except (ValidationError, BusinessRuleViolation) as e:
+                # Restore task state
+                self.task_repository.save(task_snapshot)
+                raise  # Re-raise the exception to be caught by outer try block
+
+        except TaskNotFoundError:
+            return Result.failure(
+                Error.not_found("Task", str(params["task_id"]))
+            )
+        except ValidationError as e:
+            return Result.failure(Error.validation_error(str(e)))
+        except BusinessRuleViolation as e:
+            return Result.failure(Error.business_rule_violation(str(e)))
+
+
+@dataclass
+class CreateTaskUseCase:
+    """Use case for creating a new task."""
+
+    task_repository: TaskRepository
+    project_repository: ProjectRepository
+
+    def execute(self, request: CreateTaskRequest) -> Result:
+        """Execute the use case."""
+        try:
+            params = request.to_execution_params()
+
+            # If task is part of a project, verify project exists
+            project_id = params.get("project_id")
+            if project_id:
+                self.project_repository.get(project_id)
+
+            task = Task(
+                title=params["title"],
+                description=params["description"],
+                due_date=params.get("deadline"),
+                priority=params.get("priority", Priority.MEDIUM),
+            )
+
+            # Set the project_id if one was provided
+            if project_id:
+                task.project_id = project_id
+
+            self.task_repository.save(task)
+
+            return Result.success(TaskResponse.from_entity(task))
+
+        except ProjectNotFoundError:
+            return Result.failure(
+                Error.not_found("Project", str(params.get("project_id")))
+            )
+        except ValidationError as e:
+            return Result.failure(Error.validation_error(str(e)))
+        except BusinessRuleViolation as e:
+            return Result.failure(Error.business_rule_violation(str(e)))
+
+
+@dataclass
+class SetTaskPriorityUseCase:
+    task_repository: TaskRepository
+    notification_service: NotificationPort  # Depends on capability interface
+
+    def execute(self, request: SetTaskPriorityRequest) -> Result:
+        try:
+            params = request.to_execution_params()
+
+            task = self.task_repository.get(params["task_id"])
+            task.priority = params["priority"]
+
+            self.task_repository.save(task)
+
+            if task.priority == Priority.HIGH:
+                self.notification_service.notify_task_high_priority(task.id)
+
+            return Result.success(TaskResponse.from_entity(task))
+        except ValidationError as e:
+            return Result.failure(Error.validation_error(str(e)))
+
+<file_end>todo_app/application/use_cases/task_use_cases.py</file_end>
+
+<file_start>todo_app/application/use_cases/deadline_use_cases.py</file_start>
+from dataclasses import field, dataclass
+from datetime import timedelta
+
+from todo_app.application.common.result import Result, Error
+from todo_app.application.ports.notifications import (
+    NotificationPort,
+)
+from todo_app.application.repositories.task_repository import (
+    TaskRepository,
+)
+from todo_app.domain.exceptions import (
+    TaskNotFoundError,
+    ValidationError,
+    BusinessRuleViolation,
+)
+
+
+@dataclass
+class CheckDeadlinesUseCase:
+    """Use case for checking and notifying about approaching task deadlines."""
+
+    task_repository: TaskRepository
+    notification_service: NotificationPort
+    warning_threshold: timedelta = field(default=timedelta(days=1))
+
+    def execute(self) -> Result:
+        """Check all tasks and notify about approaching deadlines."""
+        try:
+            tasks = self.task_repository.get_active_tasks()
+            notifications_sent = 0
+
+            for task in tasks:
+                if task.due_date and task.due_date.is_approaching(
+                    self.warning_threshold
+                ):
+                    remaining_days = int(
+                        task.due_date.time_remaining().total_seconds()
+                        / (24 * 3600)
+                    )
+                    self.notification_service.notify_task_deadline_approaching(
+                        task.id, remaining_days
+                    )
+                    notifications_sent += 1
+
+            return Result.success({"notifications_sent": notifications_sent})
+
+        except TaskNotFoundError as e:
+            return Result.failure(Error.not_found("Task", str(e)))
+        except ValidationError as e:
+            return Result.failure(Error.validation_error(str(e)))
+        except BusinessRuleViolation as e:
+            return Result.failure(Error.business_rule_violation(str(e)))
+
+<file_end>todo_app/application/use_cases/deadline_use_cases.py</file_end>
+
+<file_start>todo_app/application/use_cases/project_use_cases.py</file_start>
+"""
+This module contains use cases for project operations.
+"""
+
+from copy import deepcopy
+from dataclasses import dataclass
+
+from todo_app.application.common.result import Result, Error
+from todo_app.application.dtos.project_dtos import (
+    CreateProjectRequest,
+    ProjectResponse,
+    CompleteProjectRequest,
+    CompleteProjectResponse,
+)
+from todo_app.application.ports.notifications import (
+    NotificationPort,
+)
+from todo_app.application.repositories.project_repository import (
+    ProjectRepository,
+)
+from todo_app.application.repositories.task_repository import (
+    TaskRepository,
+)
+from todo_app.domain.entities.project import Project
+from todo_app.domain.exceptions import (
+    ValidationError,
+    BusinessRuleViolation,
+    ProjectNotFoundError,
+)
+
+
+@dataclass
+class CreateProjectUseCase:
+    """Use case for creating a new project."""
+
+    project_repository: ProjectRepository
+
+    def execute(self, request: CreateProjectRequest) -> Result:
+        """Execute the use case."""
+        try:
+            params = request.to_execution_params()
+
+            project = Project(
+                name=params["name"], description=params["description"]
+            )
+
+            self.project_repository.save(project)
+
+            return Result.success(ProjectResponse.from_entity(project))
+
+        except ValidationError as e:
+            return Result.failure(Error.validation_error(str(e)))
+        except BusinessRuleViolation as e:
+            return Result.failure(Error.business_rule_violation(str(e)))
+
+
+@dataclass
+class CompleteProjectUseCase:
+    """Use case for marking a project as complete."""
+
+    project_repository: ProjectRepository
+    task_repository: TaskRepository
+    notification_service: NotificationPort
+
+    def execute(self, request: CompleteProjectRequest) -> Result:
+        """Execute the use case."""
+        try:
+            params = request.to_execution_params()
+            project = self.project_repository.get(params["project_id"])
+
+            # Take snapshots of initial state
+            project_snapshot = deepcopy(project)
+            task_snapshots = {
+                task.id: deepcopy(task) for task in project.incomplete_tasks
+            }
+
+            try:
+                # Complete all outstanding tasks
+                for task in project.incomplete_tasks:
+                    task.complete()
+                    self.task_repository.save(task)
+
+                project.mark_completed(
+                    notes=params["completion_notes"],
+                )
+
+                self.project_repository.save(project)
+                for task in project_snapshot.incomplete_tasks:
+                    self.notification_service.notify_task_completed(task.id)
+                return Result.success(
+                    CompleteProjectResponse.from_entity(project)
+                )
+
+            except (ValidationError, BusinessRuleViolation) as e:
+                # Restore project state
+                for task_id, task_snapshot in task_snapshots.items():
+                    self.task_repository.save(task_snapshot)
+                self.project_repository.save(project_snapshot)
+                raise  # Re-raise the exception to be caught by outer try block
+
+        except ProjectNotFoundError:
+            return Result.failure(
+                Error.not_found("Project", str(params["project_id"]))
+            )
+        except ValidationError as e:
+            return Result.failure(Error.validation_error(str(e)))
+        except BusinessRuleViolation as e:
+            return Result.failure(Error.business_rule_violation(str(e)))
+
+<file_end>todo_app/application/use_cases/project_use_cases.py</file_end>
+
+<file_start>todo_app/application/ports/notifications.py</file_start>
+# todo_app/application/ports/notifications.py
+"""
+This module defines the notification interface (port) for external notification services.
+"""
+
+from abc import ABC, abstractmethod
+from uuid import UUID
+
+
+class NotificationPort(ABC):
+    """Interface for sending notifications about task events."""
+
+    @abstractmethod
+    def notify_task_completed(self, task_id: UUID) -> None:
+        """Notify when a task is completed."""
+        pass
+
+    @abstractmethod
+    def notify_task_high_priority(self, task_id: UUID) -> None:
+        """Notify when a task is set to high priority."""
+        pass
+
+    @abstractmethod
+    def notify_task_deadline_approaching(
+        self, task_id: UUID, days_remaining: int
+    ) -> None:
+        """Notify when a task's deadline is approaching."""
+        pass
+
+<file_end>todo_app/application/ports/notifications.py</file_end>
+
+<file_start>todo_app/infrastructure/config/container.py</file_start>
+from dataclasses import dataclass
+
+
+from todo_app.application.ports.notifications import NotificationPort
+from todo_app.application.repositories.project_repository import ProjectRepository
+from todo_app.application.repositories.task_repository import TaskRepository
+from todo_app.interfaces.presenters.base import ProjectPresenter, TaskPresenter
+from todo_app.application.use_cases.project_use_cases import CompleteProjectUseCase, CreateProjectUseCase
+from todo_app.application.use_cases.task_use_cases import CompleteTaskUseCase, CreateTaskUseCase
+from todo_app.interfaces.controllers.project_controller import ProjectController
+from todo_app.interfaces.controllers.task_controller import TaskController 
+
+@dataclass
+class Application:
+    """
+    Application container that configures and wires together all components.
+    This acts as our composition root.
+    """
+    task_repository: TaskRepository
+    project_repository: ProjectRepository
+    notification_service: NotificationPort
+    task_presenter: TaskPresenter
+    project_presenter: ProjectPresenter
+
+    def __post_init__(self):
+        # Wire up use cases
+        self.create_task_use_case = CreateTaskUseCase(
+            self.task_repository, 
+            self.project_repository
+        )
+        self.complete_task_use_case = CompleteTaskUseCase(
+            self.task_repository, 
+            self.notification_service
+        )
+        self.create_project_use_case = CreateProjectUseCase(
+            self.project_repository
+        )
+        self.complete_project_use_case = CompleteProjectUseCase(
+            self.project_repository,
+            self.task_repository,
+            self.notification_service,
+        )
+        
+        # Wire up controllers with their dependencies
+        self.task_controller = TaskController(
+            create_use_case=self.create_task_use_case,
+            complete_use_case=self.complete_task_use_case,
+            presenter=self.task_presenter
+        )
+        self.project_controller = ProjectController(
+            create_use_case=self.create_project_use_case,
+            complete_use_case=self.complete_project_use_case,
+            presenter=self.project_presenter
+        )
+    
+<file_end>todo_app/infrastructure/config/container.py</file_end>
+
+<file_start>todo_app/infrastructure/web/api_app.py</file_start>
+# todo_app/infrastructure/web/web_app.py
+"""
+FastAPI web interface implementation demonstrating Clean Architecture adaptability.
+
+This module shows how Clean Architecture enables multiple interfaces to the same
+core business logic. It demonstrates:
+1. How business logic remains unchanged across interfaces
+2. How Clean Architecture supports different external protocols
+3. How the Frameworks & Drivers layer adapts between protocols and core logic
+
+While the CLI interface uses command-line arguments, this module shows how the
+same business logic can be exposed through HTTP endpoints, demonstrating the
+flexibility Clean Architecture provides.
+"""
+
+from todo_app.application.dtos.task_dtos import CreateTaskRequest
+from fastapi import FastAPI, HTTPException
+from todo_app.infrastructure.config.container import Application, create_application
+
+app = FastAPI(
+    title="Todo API",
+    description="REST API for todo management demonstrating Clean Architecture",
+)
+application = create_application()
+
+@app.post("/tasks")
+async def create_task(task: CreateTaskRequest):
+    """
+    Create a new task through the REST interface.
+    
+    This endpoint demonstrates Clean Architecture's interface flexibility:
+    1. HTTP request is converted to internal format
+    2. Same business logic is used as CLI interface
+    3. Results are converted to HTTP responses
+    
+    Args:
+        task: Task creation request data
+        
+    Returns:
+        Created task details
+        
+    Raises:
+        HTTPException: If task creation fails
+    """
+    result = application.task_controller.handle_create(
+        title=task.title,
+        description=task.description
+    )
+    if not result.success:
+        raise HTTPException(status_code=400, detail=result.message)
+    return result.value
+<file_end>todo_app/infrastructure/web/api_app.py</file_end>
+
+<file_start>todo_app/infrastructure/cli/click_cli_app.py</file_start>
+import click
+from todo_app.infrastructure.config.container import Application
+
+
+class ClickCli:
+    def __init__(self, app: Application):
+        self.app = app
+        self.cli = click.Group()
+        
+        # Create command instances bound to self
+        create_task_cmd = click.Command(
+            'create-task',
+            callback=self.create_task,
+            params=[
+                click.Option(["-t", "--title"], required=True, help="Task title"),
+                click.Option(["-d", "--description"], default="", help="Task description")
+            ]
+        )
+        
+        create_project_cmd = click.Command(
+            'create-project',
+            callback=self.create_project,
+            params=[
+                click.Option(["-t", "--title"], required=True, help="Project title"),
+                click.Option(["-d", "--description"], default="", help="Project description")
+            ]
+        )
+        
+        complete_project_cmd = click.Command(
+            'complete-project',
+            callback=self.complete_project,
+            params=[
+                click.Option(["--id"], required=True, help="Project ID"),
+                click.Option(["-n", "--completion-notes"], default="", help="Completion notes")
+            ]
+        )
+
+        # Add commands to the group
+        self.cli.add_command(create_task_cmd)
+        self.cli.add_command(create_project_cmd)
+        self.cli.add_command(complete_project_cmd)
+
+    def run(self) -> int:
+        """Entry point for running the Click CLI application"""
+        try:
+            return self.cli.main(standalone_mode=False)
+        except Exception as e:
+            click.secho(str(e), fg='red', err=True)
+            return 1
+
+    def create_task(self, title: str, description: str):
+        result = self.app.task_controller.handle_create(title, description)
+        if result.is_success:
+            task_vm = self.app.task_presenter.present_task(result.value)
+            click.echo(f"{task_vm.status_display} [{task_vm.priority_display}] {task_vm.title}")
+            return 0
+        click.secho(self.app.task_presenter.present_error(result.error.message), fg='red', err=True)
+        return 1
+
+    def create_project(self, title: str, description: str):
+        result = self.app.project_controller.handle_create(title, description)
+        if result.is_success:
+            project_vm = self.app.project_presenter.present_project(result.value)
+            click.echo(f"Created project: {project_vm.name}")
+            return 0
+        click.secho(self.app.project_presenter.present_error(result.error.message), fg='red', err=True)
+        return 1
+
+    def complete_project(self, id: str, completion_notes: str):
+        result = self.app.project_controller.handle_complete(id, completion_notes)
+        if result.is_success:
+            project_vm = self.app.project_presenter.present_project(result.value)
+            click.echo(f"Completed project: {project_vm.name}")
+            return 0
+        click.secho(self.app.project_presenter.present_error(result.error.message), fg='red', err=True)
+        return 1
+<file_end>todo_app/infrastructure/cli/click_cli_app.py</file_end>
+
+<file_start>todo_app/infrastructure/cli/simple_cli_app.py</file_start>
+from todo_app.infrastructure.config.container import Application
+
+
+class SimpleCli:
+    def __init__(self, app: Application):
+        self.app = app
+        self.command_aliases = {
+            't': 'title',
+            'd': 'description',
+            'n': 'completion_notes',
+        }
+
+    def _normalize_kwargs(self, kwargs: dict) -> dict:
+        """Convert short aliases to full parameter names"""
+        normalized = {}
+        for key, value in kwargs.items():
+            # Strip leading dashes and convert to standard format
+            clean_key = key.lstrip('-')
+            # Use full name if it's an alias, otherwise use the original
+            normalized[self.command_aliases.get(clean_key, clean_key)] = value
+        return normalized
+
+    def run(self, command: str, **kwargs) -> int:
+        normalized_kwargs = self._normalize_kwargs(kwargs)
+        
+        command_handlers = {
+            'create-task': self._handle_create_task,
+            'create-project': self._handle_create_project,
+            'complete-project': self._handle_complete_project,
+        }
+        
+        handler = command_handlers.get(command)
+        if not handler:
+            print(f"Unknown command: {command}")
+            return 1
+            
+        return handler(**normalized_kwargs)
+
+    def _handle_create_task(self, title: str = "", description: str = "") -> int:
+        result = self.app.task_controller.handle_create(title, description)
+        if result.is_success:
+            task_vm = self.app.task_presenter.present_task(result.value)
+            print(f"{task_vm.status_display} [{task_vm.priority_display}] {task_vm.title}")
+            return 0
+        print(self.app.task_presenter.present_error(result.error.message))
+        return 1
+
+    def _handle_create_project(self, title: str = "", description: str = "") -> int:
+        result = self.app.project_controller.handle_create(title, description)
+        if result.is_success:
+            project_vm = self.app.project_presenter.present_project(result.value)
+            print(f"Created project: {project_vm.name}")
+            return 0
+        print(self.app.project_presenter.present_error(result.error.message))
+        return 1
+
+    def _handle_complete_project(self, id: str = "", completion_notes: str = "") -> int:
+        result = self.app.project_controller.handle_complete(id, completion_notes)
+        if result.is_success:
+            project_vm = self.app.project_presenter.present_project(result.value)
+            print(f"Completed project: {project_vm.name}")
+            return 0
+        print(self.app.project_presenter.present_error(result.error.message))
+        return 1
+<file_end>todo_app/infrastructure/cli/simple_cli_app.py</file_end>
+
+<file_start>todo_app/infrastructure/persistence/memory.py</file_start>
+"""
+In-memory repository implementations for demonstrating Interface Adapters patterns.
+
+This is a preimptive view into the Framworks and Drivers layer.
+
+This module provides basic in-memory implementations of repository interfaces to
+demonstrate Clean Architecture principles without the complexity of a real database.
+It shows:
+- How repository interfaces from the Application layer are implemented
+- How persistence concerns are kept separate from business logic
+- Basic error handling at the storage boundary
+
+These implementations will be replaced by actual database repositories in Chapter 7,
+demonstrating how Clean Architecture enables swapping storage mechanisms while
+maintaining core functionality.
+"""
+
+from typing import Dict, Sequence
+from uuid import UUID
+
+from todo_app.domain.entities.task import Task
+from todo_app.domain.entities.project import Project
+from todo_app.domain.exceptions import TaskNotFoundError, ProjectNotFoundError
+from todo_app.domain.value_objects import TaskStatus
+from todo_app.application.repositories.task_repository import TaskRepository
+from todo_app.application.repositories.project_repository import ProjectRepository
+
+
+class InMemoryTaskRepository(TaskRepository):
+    """
+    In-memory implementation of TaskRepository for teaching Interface Adapters concepts.
+    
+    This class demonstrates how storage gateways work in Clean Architecture:
+    - Implements interface defined by Application layer
+    - Encapsulates storage details (in-memory dict in this case)
+    - Maintains separation between storage and business logic
+    - Handles storage-related errors
+    
+    While simplified, this implementation establishes patterns that will be used
+    in actual database implementations.
+    """
+    
+    def __init__(self):
+        self._tasks: Dict[UUID, Task] = {}
+
+    def get(self, task_id: UUID) -> Task:
+        """Retrieve a task by ID or raise TaskNotFoundError."""
+        if task := self._tasks.get(task_id):
+            return task
+        raise TaskNotFoundError(task_id)
+
+    def save(self, task: Task) -> None:
+        """Save or update a task."""
+        self._tasks[task.id] = task
+
+    def delete(self, task_id: UUID) -> None:
+        """Delete a task if it exists."""
+        self._tasks.pop(task_id, None)
+
+    def find_by_project(self, project_id: UUID) -> Sequence[Task]:
+        """Find all tasks belonging to a project."""
+        return [
+            task for task in self._tasks.values()
+            if task.project_id == project_id
+        ]
+
+    def get_active_tasks(self) -> Sequence[Task]:
+        """Get all non-completed tasks."""
+        return [
+            task for task in self._tasks.values()
+            if task.status != TaskStatus.DONE
+        ]
+
+
+class InMemoryProjectRepository(ProjectRepository):
+    """
+    In-memory implementation of ProjectRepository for teaching Interface Adapters concepts.
+    
+    Similar to InMemoryTaskRepository, this class demonstrates gateway implementation
+    patterns that will be used with actual databases in later chapters.
+    """
+    
+    def __init__(self):
+        self._projects: Dict[UUID, Project] = {}
+
+    def get(self, project_id: UUID) -> Project:
+        """Retrieve a project by ID or raise ProjectNotFoundError."""
+        if project := self._projects.get(project_id):
+            return project
+        raise ProjectNotFoundError(project_id)
+
+    def save(self, project: Project) -> None:
+        """Save or update a project."""
+        self._projects[project.id] = project
+
+    def delete(self, project_id: UUID) -> None:
+        """Delete a project if it exists."""
+        self._projects.pop(project_id, None)
+<file_end>todo_app/infrastructure/persistence/memory.py</file_end>
+
+<file_start>todo_app/infrastructure/notifications/recorder.py</file_start>
+"""
+Simple notification implementation for demonstrating Interface Adapters patterns.
+
+This is a preimptive view into the Framworks and Drivers layer.
+
+This module provides a basic implementation of the notification interface to
+demonstrate Clean Architecture principles without the complexity of real
+notification services. It shows:
+- How notification interfaces from the Application layer are implemented
+- How notification concerns are kept separate from business logic
+- Basic handling of notification events
+
+This implementation will be replaced by actual notification services in Chapter 7,
+demonstrating how Clean Architecture enables swapping notification mechanisms
+while maintaining core functionality.
+"""
+
+from uuid import UUID
+from todo_app.application.ports.notifications import NotificationPort
+
+
+class NotificationRecorder(NotificationPort):
+    """
+    Simple notification implementation for teaching Interface Adapters concepts.
+    
+    This class demonstrates how notification gateways work in Clean Architecture:
+    - Implements interface defined by Application layer
+    - Encapsulates notification details (simple printing in this case)
+    - Maintains separation between notification and business logic
+    
+    While simplified, this implementation establishes patterns that will be used
+    in actual notification service implementations.
+    """
+    
+    def __init__(self):
+        self.notifications: list[str] = []
+
+    def notify_task_completed(self, task_id: UUID) -> None:
+        """Record a task completion notification."""
+        message = f"Task {task_id} has been completed"
+        print(f"NOTIFICATION: {message}")
+        self.notifications.append(message)
+
+    def notify_task_high_priority(self, task_id: UUID) -> None:
+        """Record a high priority task notification."""
+        message = f"Task {task_id} has been set to high priority"
+        print(f"NOTIFICATION: {message}")
+        self.notifications.append(message)
+
+    def notify_task_deadline_approaching(
+        self, task_id: UUID, days_remaining: int
+    ) -> None:
+        """Record a deadline approaching notification."""
+        message = f"Task {task_id} deadline approaching in {days_remaining} days"
+        print(f"NOTIFICATION: {message}")
+        self.notifications.append(message)
+<file_end>todo_app/infrastructure/notifications/recorder.py</file_end>
+
+<file_start>todo_app/domain/value_objects.py</file_start>
+"""
+This is a judgement call as to placing all these objects in one
+file or in their own files.  It's really the developer's preference
+"""
+
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from enum import Enum
+
+
+class TaskStatus(Enum):
+    TODO = "TODO"
+    IN_PROGRESS = "IN_PROGRESS"
+    DONE = "DONE"
+
+
+class ProjectStatus(Enum):
+    ACTIVE = "ACTIVE"
+    COMPLETED = "COMPLETED"
+
+
+class Priority(Enum):
+    LOW = 1
+    MEDIUM = 2
+    HIGH = 3
+
+
+# frozen=True makes this immutable as it should be for a Value Object
+@dataclass(frozen=True)
+class Deadline:
+    due_date: datetime
+
+    def __post_init__(self):
+        if self.due_date < datetime.now():
+            raise ValueError("Deadline cannot be in the past")
+
+    def is_overdue(self) -> bool:
+        return datetime.now() > self.due_date
+
+    def time_remaining(self) -> timedelta:
+        return max(timedelta(0), self.due_date - datetime.now())
+
+    def is_approaching(
+        self, warning_threshold: timedelta = timedelta(days=1)
+    ) -> bool:
+        return timedelta(0) < self.time_remaining() <= warning_threshold
+
+<file_end>todo_app/domain/value_objects.py</file_end>
+
+<file_start>todo_app/domain/exceptions.py</file_start>
+"""
+This module contains domain-specific exceptions for the todo application.
+These exceptions represent error conditions specific to the domain model.
+"""
+
+from uuid import UUID
+
+
+class DomainError(Exception):
+    """Base class for domain-specific errors."""
+
+    pass
+
+
+class TaskNotFoundError(DomainError):
+    """Raised when attempting to access a task that doesn't exist."""
+
+    def __init__(self, task_id: UUID) -> None:
+        self.task_id = task_id
+        super().__init__(f"Task with id {task_id} not found")
+
+
+class ProjectNotFoundError(DomainError):
+    """Raised when attempting to access a project that doesn't exist."""
+
+    def __init__(self, project_id: UUID) -> None:
+        self.project_id = project_id
+        super().__init__(f"Project with id {project_id} not found")
+
+
+class ValidationError(DomainError):
+    """Raised when domain validation rules are violated."""
+
+    pass
+
+
+class BusinessRuleViolation(DomainError):
+    """Raised when a business rule is violated."""
+
+    pass
+
+<file_end>todo_app/domain/exceptions.py</file_end>
+
+<file_start>todo_app/domain/services/task_priority_calculator.py</file_start>
+from datetime import timedelta
+
+from todo_app.domain.entities.task import Task
+from todo_app.domain.value_objects import Priority
+
+
+class TaskPriorityCalculator:
+    @staticmethod
+    def calculate_priority(task: Task) -> Priority:
+        """
+        Consider Task Priority based on impending due date
+
+        """
+        # No adjustment needed if no due date
+        if task.due_date is None:
+            return task.priority
+        # High if overdue or due within 12 hours
+        if task.is_overdue() or task.due_date.time_remaining() <= timedelta(
+            hours=12
+        ):
+            return Priority.HIGH
+        # Med if task due within 2 days
+        elif task.due_date and task.due_date.time_remaining() <= timedelta(
+            days=2
+        ):
+            return Priority.MEDIUM
+        else:
+            return Priority.LOW
+
+<file_end>todo_app/domain/services/task_priority_calculator.py</file_end>
+
+<file_start>todo_app/domain/entities/task.py</file_start>
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Optional
+from uuid import UUID
+
+from todo_app.domain.entities.entity import Entity
+from todo_app.domain.value_objects import (
+    Deadline,
+    Priority,
+    TaskStatus,
+)
+
+
+@dataclass
+class Task(Entity):
+    """A task that needs to be completed."""
+
+    title: str
+    description: str
+    due_date: Optional[Deadline] = None
+    priority: Priority = Priority.MEDIUM
+    status: TaskStatus = field(default=TaskStatus.TODO, init=False)
+    completed_at: Optional[datetime] = field(default=None, init=False)
+    completion_notes: Optional[str] = field(default=None, init=False)
+    project_id: Optional[UUID] = field(default=None, init=False)
+
+    def start(self) -> None:
+        """Mark the task as in progress."""
+        if self.status != TaskStatus.TODO:
+            raise ValueError("Only tasks with 'TODO' status can be started")
+        self.status = TaskStatus.IN_PROGRESS
+
+    def complete(self, notes: Optional[str] = None) -> None:
+        """
+        Mark the task as complete.
+
+        Args:
+            notes: Optional completion notes
+
+        Raises:
+            ValueError: If task is already completed
+        """
+        if self.status == TaskStatus.DONE:
+            raise ValueError("Task is already completed")
+        self.status = TaskStatus.DONE
+        self.completed_at = datetime.now()
+        self.completion_notes = notes
+
+    def is_overdue(self) -> bool:
+        """Check if the task is overdue."""
+        return self.due_date is not None and self.due_date.is_overdue()
+
+<file_end>todo_app/domain/entities/task.py</file_end>
+
+<file_start>todo_app/domain/entities/entity.py</file_start>
+from dataclasses import dataclass, field
+from uuid import UUID, uuid4
+
+
+@dataclass
+class Entity:
+    # Automatically generates a unique UUID for the 'id' field;
+    #   excluded from the __init__ method
+    id: UUID = field(default_factory=uuid4, init=False)
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, type(self)):
+            return NotImplemented
+        return self.id == other.id
+
+    def __hash__(self) -> int:
+        return hash(self.id)
+
+<file_end>todo_app/domain/entities/entity.py</file_end>
+
+<file_start>todo_app/domain/entities/project.py</file_start>
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Optional
+from uuid import UUID
+
+from todo_app.domain.entities.entity import Entity
+from todo_app.domain.entities.task import Task
+from todo_app.domain.value_objects import (
+    TaskStatus,
+    ProjectStatus,
+)
+
+
+@dataclass
+class Project(Entity):
+    """A project containing multiple tasks."""
+
+    name: str
+    description: str = ""
+    status: ProjectStatus = field(default=ProjectStatus.ACTIVE, init=False)
+    completed_at: Optional[datetime] = field(default=None, init=False)
+    completion_notes: Optional[str] = field(default=None, init=False)
+    _tasks: dict[UUID, Task] = field(default_factory=dict, init=False)
+
+    def add_task(self, task: Task) -> None:
+        """Add a task to the project."""
+        if self.status == ProjectStatus.COMPLETED:
+            raise ValueError("Cannot add tasks to a completed project")
+        self._tasks[task.id] = task
+        task.project_id = self.id
+
+    def remove_task(self, task_id: UUID) -> None:
+        """Remove a task from the project."""
+        if task := self._tasks.pop(task_id, None):
+            task.project_id = None
+
+    def get_task(self, task_id: UUID) -> Optional[Task]:
+        """Get a task by its ID."""
+        return self._tasks.get(task_id)
+
+    @property
+    def tasks(self) -> list[Task]:
+        """Get all tasks in the project."""
+        return list(self._tasks.values())
+
+    @property
+    def incomplete_tasks(self) -> list[Task]:
+        """Get all incomplete tasks in the project."""
+        return [task for task in self.tasks if task.status != TaskStatus.DONE]
+
+    def mark_completed(self, notes: Optional[str] = None) -> None:
+        """
+        Mark the project as completed.
+
+        Args:
+            notes: Optional completion notes
+        """
+        self.status = ProjectStatus.COMPLETED
+        self.completed_at = datetime.now()
+        self.completion_notes = notes
+
+<file_end>todo_app/domain/entities/project.py</file_end>
+
+<file_start>todo_app/interfaces/view_models/task_vm.py</file_start>
+from dataclasses import dataclass
+from typing import Optional
+
+
+@dataclass(frozen=True)
+class TaskViewModel:
+    """View-specific representation of a task."""
+    id: str
+    title: str
+    description: str
+    status_display: str  # Human readable status
+    priority_display: str  # Human readable priority
+    due_date_display: Optional[str]  # Formatted date string
+    project_display: Optional[str]  # Project name if available
+    completion_info: Optional[str]  # Formatted completion details
+
+<file_end>todo_app/interfaces/view_models/task_vm.py</file_end>
+
+<file_start>todo_app/interfaces/view_models/project_vm.py</file_start>
+# interfaces/view_models/task_vm.py
+from dataclasses import dataclass
+from typing import Optional
+
+
+@dataclass(frozen=True)
+class ProjectViewModel:
+    """View-specific representation of a project."""
+    id: str
+    name: str
+    description: str
+    status_display: str
+    task_count: str  # e.g., "5 tasks (2 completed)"
+    completion_info: Optional[str]
+<file_end>todo_app/interfaces/view_models/project_vm.py</file_end>
+
+<file_start>todo_app/interfaces/presenters/cli.py</file_start>
+# interfaces/presenters/cli.py
+from todo_app.application.dtos.project_dtos import CompleteProjectResponse, ProjectResponse
+from todo_app.interfaces.view_models.project_vm import ProjectViewModel
+from todo_app.application.dtos.task_dtos import TaskResponse
+from todo_app.interfaces.presenters.base import ProjectPresenter, TaskPresenter
+from todo_app.interfaces.view_models.task_vm import TaskViewModel
+
+
+class CliTaskPresenter(TaskPresenter):
+    """CLI-specific task presenter."""
+    
+    def present_task(self, task_response: TaskResponse) -> TaskViewModel:
+        """Format task for CLI display."""
+        return TaskViewModel(
+            id=task_response.id,
+            title=task_response.title,
+            description=task_response.description,
+            status_display=f"[{task_response.status}]",
+            priority_display=f"Priority: {task_response.priority}",
+            due_date_display=f"Due: {task_response.due_date}" if task_response.due_date else "No due date",
+            project_display=f"Project: {task_response.project_id}" if task_response.project_id else None,
+            completion_info=f"Completed: {task_response.completion_date}" if task_response.completion_date else None
+        )
+    
+    def present_error(self, error_msg: str) -> str:
+        """Format error for CLI display."""
+        return f"Error: {error_msg}"
+
+class CliProjectPresenter(ProjectPresenter):
+    """CLI-specific project presenter."""
+    
+    def present_project(self, project_response: ProjectResponse) -> ProjectViewModel:
+        """Format project for CLI display."""
+        return ProjectViewModel(
+            id=project_response.id,
+            name=project_response.name,
+            description=project_response.description,
+            status_display=f"[{project_response.status}]",
+            task_count=str(len(project_response.tasks)),
+            completion_info=f"Completed: {project_response.completion_date}" if project_response.completion_date else None
+        )
+    
+    def present_completion(self, completion_response: CompleteProjectResponse) -> str:
+        """Format project completion for CLI display."""
+        return f"Project {completion_response.id} completed on {completion_response.completion_date}"
+    
+    def present_error(self, error_msg: str) -> str:
+        """Format error for CLI display."""
+        return f"Error: {error_msg}"
+<file_end>todo_app/interfaces/presenters/cli.py</file_end>
+
+<file_start>todo_app/interfaces/presenters/base.py</file_start>
+from abc import ABC, abstractmethod
+from typing import Any
+
+from todo_app.application.dtos.project_dtos import CompleteProjectResponse, ProjectResponse
+from todo_app.application.dtos.task_dtos import TaskResponse
+from todo_app.interfaces.view_models.project_vm import ProjectViewModel
+from todo_app.interfaces.view_models.task_vm import TaskViewModel
+
+class TaskPresenter(ABC):
+    """Abstract base presenter for task-related output."""
+    
+    @abstractmethod
+    def present_task(self, task_response: TaskResponse) -> TaskViewModel:
+        """Convert task response to view model."""
+        pass
+        
+    @abstractmethod
+    def present_error(self, error_msg: str) -> str:
+        """Format error message for display."""
+        pass
+
+class ProjectPresenter(ABC):
+    """Abstract base presenter for project-related output."""
+    
+    @abstractmethod
+    def present_project(self, project_response: ProjectResponse) -> ProjectViewModel:
+        """Convert project response to view model."""
+        pass
+        
+    @abstractmethod
+    def present_completion(self, completion_response: CompleteProjectResponse) -> str:
+        """Format project completion message."""
+        pass
+        
+    @abstractmethod
+    def present_error(self, error_msg: str) -> str:
+        """Format error message for display."""
+        pass
+<file_end>todo_app/interfaces/presenters/base.py</file_end>
+
+<file_start>todo_app/interfaces/controllers/task_controller.py</file_start>
+from dataclasses import dataclass
+from typing import Optional
+
+from todo_app.interfaces.presenters.base import TaskPresenter
+from todo_app.application.dtos.task_dtos import CompleteTaskRequest
+from todo_app.application.common.result import Result
+from todo_app.application.dtos.task_dtos import CreateTaskRequest
+from todo_app.application.use_cases.task_use_cases import CompleteTaskUseCase, CreateTaskUseCase
+
+
+@dataclass
+class TaskController:
+    """Controller for task-related operations."""
+    create_use_case: CreateTaskUseCase
+    complete_use_case: CompleteTaskUseCase
+    presenter: TaskPresenter
+
+    def handle_create(self, title: str, description: str, **kwargs) -> Result:
+        """Handle task creation request."""
+        request = CreateTaskRequest(title=title, description=description)
+        result = self.create_use_case.execute(request)
+        return result
+
+    def handle_complete(self, task_id: str, notes: Optional[str] = None) -> Result:
+        """Handle task completion request."""
+        request = CompleteTaskRequest(task_id=task_id, completion_notes=notes)
+        result = self.complete_use_case.execute(request)
+        return result
+
+
+<file_end>todo_app/interfaces/controllers/task_controller.py</file_end>
+
+<file_start>todo_app/interfaces/controllers/deadline_controller.py</file_start>
+
+<file_end>todo_app/interfaces/controllers/deadline_controller.py</file_end>
+
+<file_start>todo_app/interfaces/controllers/project_controller.py</file_start>
+from dataclasses import dataclass
+from typing import Optional
+
+from todo_app.interfaces.presenters.base import ProjectPresenter
+from todo_app.application.common.result import Result
+from todo_app.application.dtos.project_dtos import CompleteProjectRequest, CreateProjectRequest
+from todo_app.application.use_cases.project_use_cases import CompleteProjectUseCase, CreateProjectUseCase
+
+
+@dataclass
+class ProjectController:
+    """Controller for project-related operations."""
+    create_use_case: CreateProjectUseCase
+    complete_use_case: CompleteProjectUseCase
+    presenter: ProjectPresenter
+
+    def handle_create(self, name: str, description: str = "") -> Result:
+        """Handle project creation request."""
+        request = CreateProjectRequest(name=name, description=description)
+        result = self.create_use_case.execute(request)
+        return result
+
+    def handle_complete(self, project_id: str, notes: Optional[str] = None) -> Result:
+        """Handle project completion request."""
+        request = CompleteProjectRequest(project_id=project_id, completion_notes=notes)
+        result = self.complete_use_case.execute(request)
+        return result
+<file_end>todo_app/interfaces/controllers/project_controller.py</file_end>
+
