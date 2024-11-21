@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Optional
 from uuid import UUID
 
-from Chapter_5.TodoApp.todo_app.domain.exceptions import ValidationError
+from todo_app.domain.exceptions import ValidationError
 
 
 @dataclass(frozen=True)

@@ -2,11 +2,11 @@ from uuid import UUID
 
 import pytest
 
-from Chapter_5.TodoApp.tests.application.conftest import (
+from tests.application.conftest import (
     InMemoryProjectRepository,
 )
-from Chapter_5.TodoApp.todo_app.domain.entities.project import Project
-from Chapter_5.TodoApp.todo_app.domain.exceptions import ProjectNotFoundError
+from todo_app.domain.entities.project import Project
+from todo_app.domain.exceptions import ProjectNotFoundError
 
 
 def test_project_repository_delete():

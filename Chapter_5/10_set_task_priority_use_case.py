@@ -1,18 +1,18 @@
 from dataclasses import dataclass
 
-from Chapter_5.TodoApp.todo_app.application.common.result import Result, Error
-from Chapter_5.TodoApp.todo_app.application.dtos.task_dtos import (
+from todo_app.application.common.result import Result, Error
+from todo_app.application.dtos.task_dtos import (
     TaskResponse,
     SetTaskPriorityRequest,
 )
-from Chapter_5.TodoApp.todo_app.application.ports.notifications import (
+from todo_app.application.ports.notifications import (
     NotificationPort,
 )
-from Chapter_5.TodoApp.todo_app.application.repositories.task_repository import (
+from todo_app.application.repositories.task_repository import (
     TaskRepository,
 )
-from Chapter_5.TodoApp.todo_app.domain.exceptions import ValidationError
-from Chapter_5.TodoApp.todo_app.domain.value_objects import Priority
+from todo_app.domain.exceptions import ValidationError
+from todo_app.domain.value_objects import Priority
 
 
 @dataclass

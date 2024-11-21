@@ -3,9 +3,9 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
-from Chapter_5.TodoApp.todo_app.domain.entities.entity import Entity
-from Chapter_5.TodoApp.todo_app.domain.entities.task import Task
-from Chapter_5.TodoApp.todo_app.domain.value_objects import (
+from todo_app.domain.entities.entity import Entity
+from todo_app.domain.entities.task import Task
+from todo_app.domain.value_objects import (
     TaskStatus,
     ProjectStatus,
 )

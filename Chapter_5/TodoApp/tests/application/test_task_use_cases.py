@@ -5,29 +5,29 @@ from uuid import uuid4
 
 import pytest
 
-from Chapter_5.TodoApp.tests.application.conftest import (
+from tests.application.conftest import (
     InMemoryTaskRepository,
     InMemoryProjectRepository,
     NotificationRecorder,
 )
-from Chapter_5.TodoApp.todo_app.application.common.result import ErrorCode
-from Chapter_5.TodoApp.todo_app.application.dtos.task_dtos import (
+from todo_app.application.common.result import ErrorCode
+from todo_app.application.dtos.task_dtos import (
     CreateTaskRequest,
     CompleteTaskRequest,
     SetTaskPriorityRequest,
 )
-from Chapter_5.TodoApp.todo_app.application.use_cases.task_use_cases import (
+from todo_app.application.use_cases.task_use_cases import (
     CreateTaskUseCase,
     CompleteTaskUseCase,
     SetTaskPriorityUseCase,
 )
-from Chapter_5.TodoApp.todo_app.domain.entities.project import Project
-from Chapter_5.TodoApp.todo_app.domain.entities.task import Task
-from Chapter_5.TodoApp.todo_app.domain.exceptions import (
+from todo_app.domain.entities.project import Project
+from todo_app.domain.entities.task import Task
+from todo_app.domain.exceptions import (
     BusinessRuleViolation,
     ValidationError,
 )
-from Chapter_5.TodoApp.todo_app.domain.value_objects import Priority, TaskStatus
+from todo_app.domain.value_objects import Priority, TaskStatus
 
 
 def test_create_task_basic():

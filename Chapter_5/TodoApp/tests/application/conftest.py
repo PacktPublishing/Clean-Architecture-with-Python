@@ -5,22 +5,22 @@ from dataclasses import dataclass
 from typing import Sequence
 from uuid import UUID
 
-from Chapter_5.TodoApp.todo_app.application.ports.notifications import (
+from todo_app.application.ports.notifications import (
     NotificationPort,
 )
-from Chapter_5.TodoApp.todo_app.application.repositories.project_repository import (
+from todo_app.application.repositories.project_repository import (
     ProjectRepository,
 )
-from Chapter_5.TodoApp.todo_app.application.repositories.task_repository import (
+from todo_app.application.repositories.task_repository import (
     TaskRepository,
 )
-from Chapter_5.TodoApp.todo_app.domain.entities.project import Project
-from Chapter_5.TodoApp.todo_app.domain.entities.task import Task
-from Chapter_5.TodoApp.todo_app.domain.exceptions import (
+from todo_app.domain.entities.project import Project
+from todo_app.domain.entities.task import Task
+from todo_app.domain.exceptions import (
     TaskNotFoundError,
     ProjectNotFoundError,
 )
-from Chapter_5.TodoApp.todo_app.domain.value_objects import TaskStatus
+from todo_app.domain.value_objects import TaskStatus
 
 
 @dataclass

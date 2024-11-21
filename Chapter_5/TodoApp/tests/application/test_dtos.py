@@ -4,12 +4,11 @@
 from datetime import datetime, timedelta
 
 import pytest
-
-from Chapter_5.TodoApp.todo_app.application.dtos.project_dtos import (
+from todo_app.application.dtos.project_dtos import (
     CompleteProjectRequest,
     CreateProjectRequest,
 )
-from Chapter_5.TodoApp.todo_app.application.dtos.task_dtos import (
+from todo_app.application.dtos.task_dtos import (
     CompleteTaskRequest,
     CreateTaskRequest,
     SetTaskPriorityRequest,

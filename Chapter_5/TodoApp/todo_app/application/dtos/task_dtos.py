@@ -8,8 +8,8 @@ from datetime import datetime
 from typing import Optional, Self
 from uuid import UUID
 
-from Chapter_5.TodoApp.todo_app.domain.entities.task import Task
-from Chapter_5.TodoApp.todo_app.domain.value_objects import Deadline, Priority
+from todo_app.domain.entities.task import Task
+from todo_app.domain.value_objects import Deadline, Priority
 
 
 @dataclass(frozen=True)

@@ -5,30 +5,30 @@ This module contains use cases for task operations.
 from copy import deepcopy
 from dataclasses import dataclass
 
-from Chapter_5.TodoApp.todo_app.application.common.result import Result, Error
-from Chapter_5.TodoApp.todo_app.application.dtos.task_dtos import (
+from todo_app.application.common.result import Result, Error
+from todo_app.application.dtos.task_dtos import (
     CompleteTaskRequest,
     CreateTaskRequest,
     TaskResponse,
     SetTaskPriorityRequest,
 )
-from Chapter_5.TodoApp.todo_app.application.ports.notifications import (
+from todo_app.application.ports.notifications import (
     NotificationPort,
 )
-from Chapter_5.TodoApp.todo_app.application.repositories.project_repository import (
+from todo_app.application.repositories.project_repository import (
     ProjectRepository,
 )
-from Chapter_5.TodoApp.todo_app.application.repositories.task_repository import (
+from todo_app.application.repositories.task_repository import (
     TaskRepository,
 )
-from Chapter_5.TodoApp.todo_app.domain.entities.task import Task
-from Chapter_5.TodoApp.todo_app.domain.exceptions import (
+from todo_app.domain.entities.task import Task
+from todo_app.domain.exceptions import (
     TaskNotFoundError,
     ProjectNotFoundError,
     ValidationError,
     BusinessRuleViolation,
 )
-from Chapter_5.TodoApp.todo_app.domain.value_objects import Priority
+from todo_app.domain.value_objects import Priority
 
 
 @dataclass

@@ -8,22 +8,22 @@ from dataclasses import dataclass
 from typing import Sequence
 from uuid import UUID
 
-from Chapter_5.TodoApp.todo_app.application.ports.notifications import (
+from todo_app.application.ports.notifications import (
     NotificationPort,
 )
-from Chapter_5.TodoApp.todo_app.application.repositories.project_repository import (
+from todo_app.application.repositories.project_repository import (
     ProjectRepository,
 )
-from Chapter_5.TodoApp.todo_app.application.repositories.task_repository import (
+from todo_app.application.repositories.task_repository import (
     TaskRepository,
 )
-from Chapter_5.TodoApp.todo_app.domain.entities.project import Project
-from Chapter_5.TodoApp.todo_app.domain.entities.task import Task
-from Chapter_5.TodoApp.todo_app.domain.exceptions import (
+from todo_app.domain.entities.project import Project
+from todo_app.domain.entities.task import Task
+from todo_app.domain.exceptions import (
     TaskNotFoundError,
     ProjectNotFoundError,
 )
-from Chapter_5.TodoApp.todo_app.domain.value_objects import TaskStatus
+from todo_app.domain.value_objects import TaskStatus
 
 
 @dataclass
@@ -163,11 +163,11 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from Chapter_5.TodoApp.todo_app.application.dtos.project_dtos import (
+from todo_app.application.dtos.project_dtos import (
     CompleteProjectRequest,
     CreateProjectRequest,
 )
-from Chapter_5.TodoApp.todo_app.application.dtos.task_dtos import (
+from todo_app.application.dtos.task_dtos import (
     CompleteTaskRequest,
     CreateTaskRequest,
     SetTaskPriorityRequest,
@@ -344,26 +344,26 @@ from uuid import uuid4
 
 import pytest
 
-from Chapter_5.TodoApp.todo_app.application.common.result import ErrorCode
-from Chapter_5.TodoApp.todo_app.application.dtos.project_dtos import (
+from todo_app.application.common.result import ErrorCode
+from todo_app.application.dtos.project_dtos import (
     CreateProjectRequest,
     CompleteProjectRequest,
 )
-from Chapter_5.TodoApp.todo_app.application.use_cases.project_use_cases import (
+from todo_app.application.use_cases.project_use_cases import (
     CreateProjectUseCase,
     CompleteProjectUseCase,
 )
-from Chapter_5.TodoApp.todo_app.domain.entities.project import Project
-from Chapter_5.TodoApp.todo_app.domain.entities.task import Task
-from Chapter_5.TodoApp.todo_app.domain.exceptions import (
+from todo_app.domain.entities.project import Project
+from todo_app.domain.entities.task import Task
+from todo_app.domain.exceptions import (
     BusinessRuleViolation,
     ValidationError,
 )
-from Chapter_5.TodoApp.todo_app.domain.value_objects import (
+from todo_app.domain.value_objects import (
     ProjectStatus,
     TaskStatus,
 )
-from Chapter_5.TodoApp.todo_app.application.conftest import (
+from todo_app.application.conftest import (
     InMemoryProjectRepository,
     InMemoryTaskRepository,
     NotificationRecorder,
@@ -737,18 +737,18 @@ from uuid import UUID
 
 from freezegun import freeze_time
 
-from Chapter_5.TodoApp.todo_app.application.common.result import ErrorCode
-from Chapter_5.TodoApp.todo_app.application.use_cases.deadline_use_cases import (
+from todo_app.application.common.result import ErrorCode
+from todo_app.application.use_cases.deadline_use_cases import (
     CheckDeadlinesUseCase,
 )
-from Chapter_5.TodoApp.todo_app.domain.entities.task import Task
-from Chapter_5.TodoApp.todo_app.domain.exceptions import (
+from todo_app.domain.entities.task import Task
+from todo_app.domain.exceptions import (
     BusinessRuleViolation,
     ValidationError,
     TaskNotFoundError,
 )
-from Chapter_5.TodoApp.todo_app.domain.value_objects import Deadline
-from Chapter_5.TodoApp.todo_app.application.conftest import (
+from todo_app.domain.value_objects import Deadline
+from todo_app.application.conftest import (
     InMemoryTaskRepository,
     NotificationRecorder,
 )
@@ -995,9 +995,9 @@ from uuid import UUID
 
 import pytest
 
-from Chapter_5.TodoApp.todo_app.domain.entities.project import Project
-from Chapter_5.TodoApp.todo_app.domain.exceptions import ProjectNotFoundError
-from Chapter_5.TodoApp.todo_app.application.conftest import (
+from todo_app.domain.entities.project import Project
+from todo_app.domain.exceptions import ProjectNotFoundError
+from todo_app.application.conftest import (
     InMemoryProjectRepository,
 )
 
@@ -1056,25 +1056,25 @@ from uuid import uuid4
 
 import pytest
 
-from Chapter_5.TodoApp.todo_app.application.common.result import ErrorCode
-from Chapter_5.TodoApp.todo_app.application.dtos.task_dtos import (
+from todo_app.application.common.result import ErrorCode
+from todo_app.application.dtos.task_dtos import (
     CreateTaskRequest,
     CompleteTaskRequest,
     SetTaskPriorityRequest,
 )
-from Chapter_5.TodoApp.todo_app.application.use_cases.task_use_cases import (
+from todo_app.application.use_cases.task_use_cases import (
     CreateTaskUseCase,
     CompleteTaskUseCase,
     SetTaskPriorityUseCase,
 )
-from Chapter_5.TodoApp.todo_app.domain.entities.project import Project
-from Chapter_5.TodoApp.todo_app.domain.entities.task import Task
-from Chapter_5.TodoApp.todo_app.domain.exceptions import (
+from todo_app.domain.entities.project import Project
+from todo_app.domain.entities.task import Task
+from todo_app.domain.exceptions import (
     BusinessRuleViolation,
     ValidationError,
 )
-from Chapter_5.TodoApp.todo_app.domain.value_objects import Priority, TaskStatus
-from Chapter_5.TodoApp.todo_app.application.conftest import (
+from todo_app.domain.value_objects import Priority, TaskStatus
+from todo_app.application.conftest import (
     InMemoryTaskRepository,
     InMemoryProjectRepository,
     NotificationRecorder,
@@ -1597,9 +1597,9 @@ See [the docs](https://docs.pytest.org/en/stable/how-to/cache.html) for more inf
 <file_end>todo_app/tests/domain/.pytest_cache/v/cache/stepwise</file_end>
 
 <file_start>todo_app/tests/domain/test_active_tasks.py</file_start>
-from Chapter_5.TodoApp.todo_app.domain.entities.task import Task
-from Chapter_5.TodoApp.todo_app.domain.value_objects import TaskStatus
-from Chapter_5.TodoApp.todo_app.application.conftest import (
+from todo_app.domain.entities.task import Task
+from todo_app.domain.value_objects import TaskStatus
+from todo_app.application.conftest import (
     InMemoryTaskRepository,
 )
 
@@ -1705,11 +1705,11 @@ from datetime import datetime, timedelta
 import pytest
 from freezegun import freeze_time
 
-from Chapter_5.TodoApp.todo_app.domain.entities.task import Task
-from Chapter_5.TodoApp.todo_app.domain.services.task_priority_calculator import (
+from todo_app.domain.entities.task import Task
+from todo_app.domain.services.task_priority_calculator import (
     TaskPriorityCalculator,
 )
-from Chapter_5.TodoApp.todo_app.domain.value_objects import Deadline, Priority
+from todo_app.domain.value_objects import Deadline, Priority
 
 
 class TestDeadline:
@@ -1864,7 +1864,7 @@ This module defines the repository interface for Project entity persistence.
 from abc import ABC, abstractmethod
 from uuid import UUID
 
-from Chapter_5.TodoApp.todo_app.domain.entities.project import Project
+from todo_app.domain.entities.project import Project
 
 
 class ProjectRepository(ABC):
@@ -1917,7 +1917,7 @@ from abc import ABC, abstractmethod
 from typing import Sequence
 from uuid import UUID
 
-from Chapter_5.TodoApp.todo_app.domain.entities.task import Task
+from todo_app.domain.entities.task import Task
 
 
 class TaskRepository(ABC):
@@ -1995,8 +1995,8 @@ from datetime import datetime
 from typing import Optional, Self
 from uuid import UUID
 
-from Chapter_5.TodoApp.todo_app.domain.entities.task import Task
-from Chapter_5.TodoApp.todo_app.domain.value_objects import Deadline, Priority
+from todo_app.domain.entities.task import Task
+from todo_app.domain.value_objects import Deadline, Priority
 
 
 @dataclass(frozen=True)
@@ -2148,8 +2148,8 @@ from dataclasses import dataclass
 from typing import Optional, Sequence, Self
 from uuid import UUID
 
-from Chapter_5.TodoApp.todo_app.application.dtos.task_dtos import TaskResponse
-from Chapter_5.TodoApp.todo_app.domain.entities.project import Project
+from todo_app.application.dtos.task_dtos import TaskResponse
+from todo_app.domain.entities.project import Project
 
 
 @dataclass(frozen=True)
@@ -2346,30 +2346,30 @@ This module contains use cases for task operations.
 from copy import deepcopy
 from dataclasses import dataclass
 
-from Chapter_5.TodoApp.todo_app.application.common.result import Result, Error
-from Chapter_5.TodoApp.todo_app.application.dtos.task_dtos import (
+from todo_app.application.common.result import Result, Error
+from todo_app.application.dtos.task_dtos import (
     CompleteTaskRequest,
     CreateTaskRequest,
     TaskResponse,
     SetTaskPriorityRequest,
 )
-from Chapter_5.TodoApp.todo_app.application.ports.notifications import (
+from todo_app.application.ports.notifications import (
     NotificationPort,
 )
-from Chapter_5.TodoApp.todo_app.application.repositories.project_repository import (
+from todo_app.application.repositories.project_repository import (
     ProjectRepository,
 )
-from Chapter_5.TodoApp.todo_app.application.repositories.task_repository import (
+from todo_app.application.repositories.task_repository import (
     TaskRepository,
 )
-from Chapter_5.TodoApp.todo_app.domain.entities.task import Task
-from Chapter_5.TodoApp.todo_app.domain.exceptions import (
+from todo_app.domain.entities.task import Task
+from todo_app.domain.exceptions import (
     TaskNotFoundError,
     ProjectNotFoundError,
     ValidationError,
     BusinessRuleViolation,
 )
-from Chapter_5.TodoApp.todo_app.domain.value_objects import Priority
+from todo_app.domain.value_objects import Priority
 
 
 @dataclass
@@ -2479,14 +2479,14 @@ class SetTaskPriorityUseCase:
 from dataclasses import field, dataclass
 from datetime import timedelta
 
-from Chapter_5.TodoApp.todo_app.application.common.result import Result, Error
-from Chapter_5.TodoApp.todo_app.application.ports.notifications import (
+from todo_app.application.common.result import Result, Error
+from todo_app.application.ports.notifications import (
     NotificationPort,
 )
-from Chapter_5.TodoApp.todo_app.application.repositories.task_repository import (
+from todo_app.application.repositories.task_repository import (
     TaskRepository,
 )
-from Chapter_5.TodoApp.todo_app.domain.exceptions import (
+from todo_app.domain.exceptions import (
     TaskNotFoundError,
     ValidationError,
     BusinessRuleViolation,
@@ -2539,24 +2539,24 @@ This module contains use cases for project operations.
 from copy import deepcopy
 from dataclasses import dataclass
 
-from Chapter_5.TodoApp.todo_app.application.common.result import Result, Error
-from Chapter_5.TodoApp.todo_app.application.dtos.project_dtos import (
+from todo_app.application.common.result import Result, Error
+from todo_app.application.dtos.project_dtos import (
     CreateProjectRequest,
     ProjectResponse,
     CompleteProjectRequest,
     CompleteProjectResponse,
 )
-from Chapter_5.TodoApp.todo_app.application.ports.notifications import (
+from todo_app.application.ports.notifications import (
     NotificationPort,
 )
-from Chapter_5.TodoApp.todo_app.application.repositories.project_repository import (
+from todo_app.application.repositories.project_repository import (
     ProjectRepository,
 )
-from Chapter_5.TodoApp.todo_app.application.repositories.task_repository import (
+from todo_app.application.repositories.task_repository import (
     TaskRepository,
 )
-from Chapter_5.TodoApp.todo_app.domain.entities.project import Project
-from Chapter_5.TodoApp.todo_app.domain.exceptions import (
+from todo_app.domain.entities.project import Project
+from todo_app.domain.exceptions import (
     ValidationError,
     BusinessRuleViolation,
     ProjectNotFoundError,
@@ -2772,8 +2772,8 @@ class BusinessRuleViolation(DomainError):
 <file_start>todo_app/domain/services/task_priority_calculator.py</file_start>
 from datetime import timedelta
 
-from Chapter_5.TodoApp.todo_app.domain.entities.task import Task
-from Chapter_5.TodoApp.todo_app.domain.value_objects import Priority
+from todo_app.domain.entities.task import Task
+from todo_app.domain.value_objects import Priority
 
 
 class TaskPriorityCalculator:
@@ -2807,8 +2807,8 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
-from Chapter_5.TodoApp.todo_app.domain.entities.entity import Entity
-from Chapter_5.TodoApp.todo_app.domain.value_objects import (
+from todo_app.domain.entities.entity import Entity
+from todo_app.domain.value_objects import (
     Deadline,
     Priority,
     TaskStatus,
@@ -2883,9 +2883,9 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
-from Chapter_5.TodoApp.todo_app.domain.entities.entity import Entity
-from Chapter_5.TodoApp.todo_app.domain.entities.task import Task
-from Chapter_5.TodoApp.todo_app.domain.value_objects import (
+from todo_app.domain.entities.entity import Entity
+from todo_app.domain.entities.task import Task
+from todo_app.domain.value_objects import (
     TaskStatus,
     ProjectStatus,
 )

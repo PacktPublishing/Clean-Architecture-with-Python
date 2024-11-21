@@ -2,17 +2,17 @@ from dataclasses import dataclass
 from typing import Optional
 from uuid import UUID
 
-from Chapter_5.TodoApp.todo_app.application.common.result import Result, Error
-from Chapter_5.TodoApp.todo_app.application.dtos.project_dtos import (
+from todo_app.application.common.result import Result, Error
+from todo_app.application.dtos.project_dtos import (
     ProjectResponse,
 )
-from Chapter_5.TodoApp.todo_app.application.repositories.project_repository import (
+from todo_app.application.repositories.project_repository import (
     ProjectRepository,
 )
-from Chapter_5.TodoApp.todo_app.application.repositories.task_repository import (
+from todo_app.application.repositories.task_repository import (
     TaskRepository,
 )
-from Chapter_5.TodoApp.todo_app.domain.exceptions import (
+from todo_app.domain.exceptions import (
     ProjectNotFoundError,
     ValidationError,
 )

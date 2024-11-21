@@ -2,15 +2,15 @@ from dataclasses import field, dataclass
 from typing import Any
 from uuid import UUID
 
-from Chapter_5.TodoApp.todo_app.application.common.result import Result, Error
-from Chapter_5.TodoApp.todo_app.application.dtos.task_dtos import TaskResponse
-from Chapter_5.TodoApp.todo_app.application.ports.notifications import (
+from todo_app.application.common.result import Result, Error
+from todo_app.application.dtos.task_dtos import TaskResponse
+from todo_app.application.ports.notifications import (
     NotificationPort,
 )
-from Chapter_5.TodoApp.todo_app.application.repositories.task_repository import (
+from todo_app.application.repositories.task_repository import (
     TaskRepository,
 )
-from Chapter_5.TodoApp.todo_app.domain.exceptions import ValidationError
+from todo_app.domain.exceptions import ValidationError
 
 
 @dataclass(frozen=True)

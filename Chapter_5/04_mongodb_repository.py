@@ -1,10 +1,10 @@
 from uuid import UUID
 
-from Chapter_5.TodoApp.todo_app.application.repositories.task_repository import (
+from todo_app.application.repositories.task_repository import (
     TaskRepository,
 )
-from Chapter_5.TodoApp.todo_app.domain.entities.task import Task
-from Chapter_5.TodoApp.todo_app.domain.exceptions import TaskNotFoundError
+from todo_app.domain.entities.task import Task
+from todo_app.domain.exceptions import TaskNotFoundError
 
 
 class MongoClient:

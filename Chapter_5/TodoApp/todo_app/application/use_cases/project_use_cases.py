@@ -5,24 +5,24 @@ This module contains use cases for project operations.
 from copy import deepcopy
 from dataclasses import dataclass
 
-from Chapter_5.TodoApp.todo_app.application.common.result import Result, Error
-from Chapter_5.TodoApp.todo_app.application.dtos.project_dtos import (
+from todo_app.application.common.result import Result, Error
+from todo_app.application.dtos.project_dtos import (
     CreateProjectRequest,
     ProjectResponse,
     CompleteProjectRequest,
     CompleteProjectResponse,
 )
-from Chapter_5.TodoApp.todo_app.application.ports.notifications import (
+from todo_app.application.ports.notifications import (
     NotificationPort,
 )
-from Chapter_5.TodoApp.todo_app.application.repositories.project_repository import (
+from todo_app.application.repositories.project_repository import (
     ProjectRepository,
 )
-from Chapter_5.TodoApp.todo_app.application.repositories.task_repository import (
+from todo_app.application.repositories.task_repository import (
     TaskRepository,
 )
-from Chapter_5.TodoApp.todo_app.domain.entities.project import Project
-from Chapter_5.TodoApp.todo_app.domain.exceptions import (
+from todo_app.domain.entities.project import Project
+from todo_app.domain.exceptions import (
     ValidationError,
     BusinessRuleViolation,
     ProjectNotFoundError,

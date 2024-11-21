@@ -1,14 +1,14 @@
 from dataclasses import field, dataclass
 from datetime import timedelta
 
-from Chapter_5.TodoApp.todo_app.application.common.result import Result, Error
-from Chapter_5.TodoApp.todo_app.application.ports.notifications import (
+from todo_app.application.common.result import Result, Error
+from todo_app.application.ports.notifications import (
     NotificationPort,
 )
-from Chapter_5.TodoApp.todo_app.application.repositories.task_repository import (
+from todo_app.application.repositories.task_repository import (
     TaskRepository,
 )
-from Chapter_5.TodoApp.todo_app.domain.exceptions import (
+from todo_app.domain.exceptions import (
     TaskNotFoundError,
     ValidationError,
     BusinessRuleViolation,

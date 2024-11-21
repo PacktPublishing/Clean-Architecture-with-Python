@@ -5,7 +5,7 @@ This module defines the repository interface for Project entity persistence.
 from abc import ABC, abstractmethod
 from uuid import UUID
 
-from Chapter_5.TodoApp.todo_app.domain.entities.project import Project
+from todo_app.domain.entities.project import Project
 
 
 class ProjectRepository(ABC):

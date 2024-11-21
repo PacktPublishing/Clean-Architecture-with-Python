@@ -6,11 +6,11 @@ from datetime import datetime, timedelta
 import pytest
 from freezegun import freeze_time
 
-from Chapter_5.TodoApp.todo_app.domain.entities.task import Task
-from Chapter_5.TodoApp.todo_app.domain.services.task_priority_calculator import (
+from todo_app.domain.entities.task import Task
+from todo_app.domain.services.task_priority_calculator import (
     TaskPriorityCalculator,
 )
-from Chapter_5.TodoApp.todo_app.domain.value_objects import Deadline, Priority
+from todo_app.domain.value_objects import Deadline, Priority
 
 
 class TestDeadline:
