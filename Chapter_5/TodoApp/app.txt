@@ -363,7 +363,7 @@ from Chapter_5.TodoApp.todo_app.domain.value_objects import (
     ProjectStatus,
     TaskStatus,
 )
-from Chapter_5.TodoApp.todo_app.tests.application.conftest import (
+from Chapter_5.TodoApp.todo_app.application.conftest import (
     InMemoryProjectRepository,
     InMemoryTaskRepository,
     NotificationRecorder,
@@ -748,7 +748,7 @@ from Chapter_5.TodoApp.todo_app.domain.exceptions import (
     TaskNotFoundError,
 )
 from Chapter_5.TodoApp.todo_app.domain.value_objects import Deadline
-from Chapter_5.TodoApp.todo_app.tests.application.conftest import (
+from Chapter_5.TodoApp.todo_app.application.conftest import (
     InMemoryTaskRepository,
     NotificationRecorder,
 )
@@ -997,7 +997,7 @@ import pytest
 
 from Chapter_5.TodoApp.todo_app.domain.entities.project import Project
 from Chapter_5.TodoApp.todo_app.domain.exceptions import ProjectNotFoundError
-from Chapter_5.TodoApp.todo_app.tests.application.conftest import (
+from Chapter_5.TodoApp.todo_app.application.conftest import (
     InMemoryProjectRepository,
 )
 
@@ -1074,7 +1074,7 @@ from Chapter_5.TodoApp.todo_app.domain.exceptions import (
     ValidationError,
 )
 from Chapter_5.TodoApp.todo_app.domain.value_objects import Priority, TaskStatus
-from Chapter_5.TodoApp.todo_app.tests.application.conftest import (
+from Chapter_5.TodoApp.todo_app.application.conftest import (
     InMemoryTaskRepository,
     InMemoryProjectRepository,
     NotificationRecorder,
@@ -1599,7 +1599,7 @@ See [the docs](https://docs.pytest.org/en/stable/how-to/cache.html) for more inf
 <file_start>todo_app/tests/domain/test_active_tasks.py</file_start>
 from Chapter_5.TodoApp.todo_app.domain.entities.task import Task
 from Chapter_5.TodoApp.todo_app.domain.value_objects import TaskStatus
-from Chapter_5.TodoApp.todo_app.tests.application.conftest import (
+from Chapter_5.TodoApp.todo_app.application.conftest import (
     InMemoryTaskRepository,
 )
 

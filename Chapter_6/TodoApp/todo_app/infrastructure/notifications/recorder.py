@@ -15,10 +15,11 @@ demonstrating how Clean Architecture enables swapping notification mechanisms
 while maintaining core functionality.
 """
 
+from dataclasses import dataclass
 from uuid import UUID
 from todo_app.application.ports.notifications import NotificationPort
 
-
+@dataclass
 class NotificationRecorder(NotificationPort):
     """
     Simple notification implementation for teaching Interface Adapters concepts.
@@ -32,20 +33,22 @@ class NotificationRecorder(NotificationPort):
     in actual notification service implementations.
     """
     
-    def __init__(self):
-        self.notifications: list[str] = []
+    def __init__(self) -> None:
+        self.completed_tasks = []
+        self.high_priority_tasks = []
+        self.deadline_warnings = []
 
     def notify_task_completed(self, task_id: UUID) -> None:
         """Record a task completion notification."""
         message = f"Task {task_id} has been completed"
         print(f"NOTIFICATION: {message}")
-        self.notifications.append(message)
+        self.completed_tasks.append(task_id)
 
     def notify_task_high_priority(self, task_id: UUID) -> None:
         """Record a high priority task notification."""
         message = f"Task {task_id} has been set to high priority"
         print(f"NOTIFICATION: {message}")
-        self.notifications.append(message)
+        self.high_priority_tasks.append(task_id)
 
     def notify_task_deadline_approaching(
         self, task_id: UUID, days_remaining: int
@@ -53,4 +56,4 @@ class NotificationRecorder(NotificationPort):
         """Record a deadline approaching notification."""
         message = f"Task {task_id} deadline approaching in {days_remaining} days"
         print(f"NOTIFICATION: {message}")
-        self.notifications.append(message)
+        self.deadline_warnings.append((task_id, days_remaining))

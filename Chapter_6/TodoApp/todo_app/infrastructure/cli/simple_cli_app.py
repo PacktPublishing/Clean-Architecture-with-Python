@@ -41,13 +41,12 @@ class SimpleCli:
     def _handle_create_task(self, title: str = "", description: str = "") -> int:
         result = self.app.task_controller.handle_create(title, description)
         
-        if result.is_success and result.success is not None:
+        if result.is_success:
             task = result.success
             print(f"{task.status_display} [{task.priority_display}] {task.title}")
             return 0
         
-        error_msg = result.error.message if result.error else "Unknown error occurred"
-        print(error_msg)
+        print(result.error.message)
         return 1
 
     def _handle_create_project(self, title: str = "", description: str = "") -> int:

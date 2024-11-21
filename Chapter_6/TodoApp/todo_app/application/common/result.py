@@ -5,8 +5,9 @@ These types provide a consistent way to handle success and failure cases across 
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Optional, Self
+from typing import Any, Optional, Generic, TypeVar, Self
 
+T = TypeVar('T')  # Success type
 
 class ErrorCode(Enum):
     """Enumeration of possible error codes in the application layer."""
@@ -56,32 +57,60 @@ class Error:
 
 
 @dataclass(frozen=True)
-class Result:
+class Result(Generic[T]):
     """
-    Represents the outcome of a use case execution, either success or failure.
+    Represents the outcome of a use case execution as an Either type.
 
-    This class provides a way to handle both successful and failed outcomes,
-    ensuring that error handling is explicit and consistent across the application layer.
+    This class encapsulates the result of an operation, which can either be a success
+    containing a value of type T, or a failure containing an Error. It enforces that
+    only one of these states can exist at a time, providing a clear and type-safe way
+    to handle operation results.
 
     Attributes:
-        value: The success value (if successful)
-        error: The error details (if failed)
+        _value: The success value of the operation, if successful.
+        _error: The error information, if the operation failed.
+
+    Methods:
+        is_success: Returns True if the result is a success, False if it is a failure.
+        value: Returns the success value if the result is a success, raises ValueError otherwise.
+        error: Returns the error if the result is a failure, raises ValueError otherwise.
+        success: Class method to create a successful result.
+        failure: Class method to create a failed result.
     """
 
-    value: Any = None
-    error: Optional[Error] = None
+    _value: Optional[T] = None
+    _error: Optional[Error] = None
+
+    def __post_init__(self):
+        if (self._value is None and self._error is None) or \
+           (self._value is not None and self._error is not None):
+            raise ValueError("Either value or error must be provided, but not both")
 
     @property
     def is_success(self) -> bool:
         """Check if the result represents a successful operation."""
-        return self.error is None
+        return self._value is not None
+
+    @property
+    def value(self) -> T:
+        """Get the success value. Raises ValueError if result is an error."""
+        if self._value is None:
+            raise ValueError("Cannot access value on error result")
+        return self._value
+
+    @property
+    def error(self) -> Error:
+        """Get the error value. Raises ValueError if result is successful."""
+        if self._error is None:
+            raise ValueError("Cannot access error on success result")
+        return self._error
 
     @classmethod
-    def success(cls, value: Any) -> Self:
+    def success(cls, value: T) -> 'Result[T]':
         """Create a successful result with the given value."""
-        return cls(value=value)
+        return cls(_value=value)
 
     @classmethod
-    def failure(cls, error: Error) -> Self:
+    def failure(cls, error: Error) -> 'Result[T]':
         """Create a failed result with the given error."""
-        return cls(error=error)
+        return cls(_error=error)

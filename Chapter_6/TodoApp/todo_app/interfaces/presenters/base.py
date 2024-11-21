@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Optional
+from typing import Optional
 
 from todo_app.interfaces.view_models.base import ErrorViewModel
 from todo_app.application.dtos.project_dtos import CompleteProjectResponse, ProjectResponse

@@ -5,6 +5,8 @@ from uuid import uuid4
 
 import pytest
 
+from todo_app.infrastructure.notifications.recorder import NotificationRecorder
+from todo_app.infrastructure.persistence.memory import InMemoryProjectRepository, InMemoryTaskRepository
 from todo_app.application.common.result import ErrorCode
 from todo_app.application.dtos.project_dtos import (
     CreateProjectRequest,
@@ -24,11 +26,7 @@ from todo_app.domain.value_objects import (
     ProjectStatus,
     TaskStatus,
 )
-from todo_app.tests.application.conftest import (
-    InMemoryProjectRepository,
-    InMemoryTaskRepository,
-    NotificationRecorder,
-)
+
 
 
 def test_create_project():

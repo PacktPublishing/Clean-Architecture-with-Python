@@ -3,6 +3,8 @@ from uuid import UUID
 
 from freezegun import freeze_time
 
+from todo_app.infrastructure.notifications.recorder import NotificationRecorder
+from todo_app.infrastructure.persistence.memory import InMemoryTaskRepository
 from todo_app.application.common.result import ErrorCode
 from todo_app.application.use_cases.deadline_use_cases import (
     CheckDeadlinesUseCase,
@@ -14,10 +16,7 @@ from todo_app.domain.exceptions import (
     TaskNotFoundError,
 )
 from todo_app.domain.value_objects import Deadline
-from todo_app.tests.application.conftest import (
-    InMemoryTaskRepository,
-    NotificationRecorder,
-)
+
 
 
 def test_check_deadlines_empty_repository():

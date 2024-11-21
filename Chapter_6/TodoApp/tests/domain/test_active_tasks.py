@@ -1,8 +1,7 @@
+from todo_app.infrastructure.persistence.memory import InMemoryTaskRepository
 from todo_app.domain.entities.task import Task
 from todo_app.domain.value_objects import TaskStatus
-from todo_app.tests.application.conftest import (
-    InMemoryTaskRepository,
-)
+
 
 
 def test_get_active_tasks_empty_repository():
