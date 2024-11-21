@@ -1,3 +1,5 @@
+from todo_app.interfaces.view_models.base import OperationResult
+from todo_app.interfaces.view_models.project_vm import ProjectViewModel
 from todo_app.infrastructure.config.container import Application
 
 
@@ -38,27 +40,34 @@ class SimpleCli:
 
     def _handle_create_task(self, title: str = "", description: str = "") -> int:
         result = self.app.task_controller.handle_create(title, description)
-        if result.is_success:
-            task_vm = self.app.task_presenter.present_task(result.value)
-            print(f"{task_vm.status_display} [{task_vm.priority_display}] {task_vm.title}")
+        
+        if result.is_success and result.success is not None:
+            task = result.success
+            print(f"{task.status_display} [{task.priority_display}] {task.title}")
             return 0
-        print(self.app.task_presenter.present_error(result.error.message))
+        
+        error_msg = result.error.message if result.error else "Unknown error occurred"
+        print(error_msg)
         return 1
 
     def _handle_create_project(self, title: str = "", description: str = "") -> int:
-        result = self.app.project_controller.handle_create(title, description)
+        result: OperationResult[ProjectViewModel] = self.app.project_controller.handle_create(title, description)
+        
         if result.is_success:
-            project_vm = self.app.project_presenter.present_project(result.value)
+            project_vm = result.success
             print(f"Created project: {project_vm.name}")
             return 0
-        print(self.app.project_presenter.present_error(result.error.message))
+        
+        print(result.error.message)
         return 1
 
     def _handle_complete_project(self, id: str = "", completion_notes: str = "") -> int:
-        result = self.app.project_controller.handle_complete(id, completion_notes)
+        result: OperationResult[ProjectViewModel] = self.app.project_controller.handle_complete(id, completion_notes)
+        
         if result.is_success:
-            project_vm = self.app.project_presenter.present_project(result.value)
+            project_vm = result.success
             print(f"Completed project: {project_vm.name}")
             return 0
-        print(self.app.project_presenter.present_error(result.error.message))
+        
+        print(result.error.message)
         return 1

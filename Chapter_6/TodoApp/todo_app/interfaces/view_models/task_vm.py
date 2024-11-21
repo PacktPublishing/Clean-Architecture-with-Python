@@ -13,3 +13,4 @@ class TaskViewModel:
     due_date_display: Optional[str]  # Formatted date string
     project_display: Optional[str]  # Project name if available
     completion_info: Optional[str]  # Formatted completion details
+

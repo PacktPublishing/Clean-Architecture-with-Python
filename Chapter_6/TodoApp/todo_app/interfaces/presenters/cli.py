@@ -1,4 +1,6 @@
 # interfaces/presenters/cli.py
+from typing import Optional
+from todo_app.interfaces.view_models.base import ErrorViewModel
 from todo_app.application.dtos.project_dtos import CompleteProjectResponse, ProjectResponse
 from todo_app.interfaces.view_models.project_vm import ProjectViewModel
 from todo_app.application.dtos.task_dtos import TaskResponse
@@ -22,9 +24,11 @@ class CliTaskPresenter(TaskPresenter):
             completion_info=f"Completed: {task_response.completion_date}" if task_response.completion_date else None
         )
     
-    def present_error(self, error_msg: str) -> str:
-        """Format error for CLI display."""
-        return f"Error: {error_msg}"
+    def present_error(self, error_msg: str, code: Optional[str] = None) -> ErrorViewModel:
+        return ErrorViewModel(
+            message=error_msg,
+            code=code
+        )
 
 class CliProjectPresenter(ProjectPresenter):
     """CLI-specific project presenter."""
@@ -44,6 +48,8 @@ class CliProjectPresenter(ProjectPresenter):
         """Format project completion for CLI display."""
         return f"Project {completion_response.id} completed on {completion_response.completion_date}"
     
-    def present_error(self, error_msg: str) -> str:
-        """Format error for CLI display."""
-        return f"Error: {error_msg}"
+    def present_error(self, error_msg: str, code: Optional[str] = None) -> ErrorViewModel:
+        return ErrorViewModel(
+            message=error_msg,
+            code=code
+        )

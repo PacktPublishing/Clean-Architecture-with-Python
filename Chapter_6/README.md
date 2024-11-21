@@ -191,7 +191,7 @@ classDiagram
 ```
 
 ### 1. Controllers
-Controllers act as the entry point for the Interface Adapters layer, receiving input from external sources and coordinating the application's response.
+Controllers act as the entry point for the Interface Adapters layer, receiving input from external sources and coordinating the application's response. They can be thought of as "Use Case Routers".
 
 #### Implementation Pattern
 ```python
@@ -210,7 +210,7 @@ class TaskController:
 Key aspects:
 - Controllers depend on use cases and presenters through constructor injection
 - Transform primitive input data into DTOs for use cases
-- Return Result objects that can be interpreted by any UI
+- Return Result objects that can be interpreted by any UI (View Models)
 
 ### 2. Presenters
 Presenters transform use case responses into format-specific view models.

@@ -1,4 +1,6 @@
 import click
+from todo_app.interfaces.view_models.base import OperationResult
+from todo_app.interfaces.view_models.project_vm import ProjectViewModel
 from todo_app.infrastructure.config.container import Application
 
 
@@ -50,27 +52,30 @@ class ClickCli:
 
     def create_task(self, title: str, description: str):
         result = self.app.task_controller.handle_create(title, description)
+        
         if result.is_success:
-            task_vm = self.app.task_presenter.present_task(result.value)
-            click.echo(f"{task_vm.status_display} [{task_vm.priority_display}] {task_vm.title}")
+            task = result.success
+            click.echo(f"{task.status_display} [{task.priority_display}] {task.title}")
             return 0
-        click.secho(self.app.task_presenter.present_error(result.error.message), fg='red', err=True)
+            
+        click.secho(result.error.message, fg='red', err=True)
         return 1
 
     def create_project(self, title: str, description: str):
-        result = self.app.project_controller.handle_create(title, description)
+        result: OperationResult[ProjectViewModel] = self.app.project_controller.handle_create(title, description)
+        
         if result.is_success:
-            project_vm = self.app.project_presenter.present_project(result.value)
+            project_vm = result.success
             click.echo(f"Created project: {project_vm.name}")
             return 0
-        click.secho(self.app.project_presenter.present_error(result.error.message), fg='red', err=True)
+        click.secho(result.error.message, fg='red', err=True)
         return 1
 
     def complete_project(self, id: str, completion_notes: str):
         result = self.app.project_controller.handle_complete(id, completion_notes)
         if result.is_success:
-            project_vm = self.app.project_presenter.present_project(result.value)
+            project_vm = result.success
             click.echo(f"Completed project: {project_vm.name}")
             return 0
-        click.secho(self.app.project_presenter.present_error(result.error.message), fg='red', err=True)
+        click.secho(result.error.message, fg='red', err=True)
         return 1
