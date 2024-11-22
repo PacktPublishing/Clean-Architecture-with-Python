@@ -1,3 +1,5 @@
+# Chapter 6 source code
+
 <file_start>todo_app/application/repositories/project_repository.py</file_start>
 """
 This module defines the repository interface for Project entity persistence.
@@ -399,8 +401,9 @@ These types provide a consistent way to handle success and failure cases across 
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Optional, Self
+from typing import Any, Optional, Generic, TypeVar, Self
 
+T = TypeVar('T')  # Success type
 
 class ErrorCode(Enum):
     """Enumeration of possible error codes in the application layer."""
@@ -450,35 +453,63 @@ class Error:
 
 
 @dataclass(frozen=True)
-class Result:
+class Result(Generic[T]):
     """
-    Represents the outcome of a use case execution, either success or failure.
+    Represents the outcome of a use case execution as an Either type.
 
-    This class provides a way to handle both successful and failed outcomes,
-    ensuring that error handling is explicit and consistent across the application layer.
+    This class encapsulates the result of an operation, which can either be a success
+    containing a value of type T, or a failure containing an Error. It enforces that
+    only one of these states can exist at a time, providing a clear and type-safe way
+    to handle operation results.
 
     Attributes:
-        value: The success value (if successful)
-        error: The error details (if failed)
+        _value: The success value of the operation, if successful.
+        _error: The error information, if the operation failed.
+
+    Methods:
+        is_success: Returns True if the result is a success, False if it is a failure.
+        value: Returns the success value if the result is a success, raises ValueError otherwise.
+        error: Returns the error if the result is a failure, raises ValueError otherwise.
+        success: Class method to create a successful result.
+        failure: Class method to create a failed result.
     """
 
-    value: Any = None
-    error: Optional[Error] = None
+    _value: Optional[T] = None
+    _error: Optional[Error] = None
+
+    def __post_init__(self):
+        if (self._value is None and self._error is None) or \
+           (self._value is not None and self._error is not None):
+            raise ValueError("Either value or error must be provided, but not both")
 
     @property
     def is_success(self) -> bool:
         """Check if the result represents a successful operation."""
-        return self.error is None
+        return self._value is not None
+
+    @property
+    def value(self) -> T:
+        """Get the success value. Raises ValueError if result is an error."""
+        if self._value is None:
+            raise ValueError("Cannot access value on error result")
+        return self._value
+
+    @property
+    def error(self) -> Error:
+        """Get the error value. Raises ValueError if result is successful."""
+        if self._error is None:
+            raise ValueError("Cannot access error on success result")
+        return self._error
 
     @classmethod
-    def success(cls, value: Any) -> Self:
+    def success(cls, value: T) -> 'Result[T]':
         """Create a successful result with the given value."""
-        return cls(value=value)
+        return cls(_value=value)
 
     @classmethod
-    def failure(cls, error: Error) -> Self:
+    def failure(cls, error: Error) -> 'Result[T]':
         """Create a failed result with the given error."""
-        return cls(error=error)
+        return cls(_error=error)
 
 <file_end>todo_app/application/common/result.py</file_end>
 
@@ -933,6 +964,8 @@ async def create_task(task: CreateTaskRequest):
 
 <file_start>todo_app/infrastructure/cli/click_cli_app.py</file_start>
 import click
+from todo_app.interfaces.view_models.base import OperationResult
+from todo_app.interfaces.view_models.project_vm import ProjectViewModel
 from todo_app.infrastructure.config.container import Application
 
 
@@ -984,33 +1017,39 @@ class ClickCli:
 
     def create_task(self, title: str, description: str):
         result = self.app.task_controller.handle_create(title, description)
+        
         if result.is_success:
-            task_vm = self.app.task_presenter.present_task(result.value)
-            click.echo(f"{task_vm.status_display} [{task_vm.priority_display}] {task_vm.title}")
+            task = result.success
+            click.echo(f"{task.status_display} [{task.priority_display}] {task.title}")
             return 0
-        click.secho(self.app.task_presenter.present_error(result.error.message), fg='red', err=True)
+            
+        click.secho(result.error.message, fg='red', err=True)
         return 1
 
     def create_project(self, title: str, description: str):
-        result = self.app.project_controller.handle_create(title, description)
+        result: OperationResult[ProjectViewModel] = self.app.project_controller.handle_create(title, description)
+        
         if result.is_success:
-            project_vm = self.app.project_presenter.present_project(result.value)
+            project_vm = result.success
             click.echo(f"Created project: {project_vm.name}")
             return 0
-        click.secho(self.app.project_presenter.present_error(result.error.message), fg='red', err=True)
+        click.secho(result.error.message, fg='red', err=True)
         return 1
 
     def complete_project(self, id: str, completion_notes: str):
         result = self.app.project_controller.handle_complete(id, completion_notes)
         if result.is_success:
-            project_vm = self.app.project_presenter.present_project(result.value)
+            project_vm = result.success
             click.echo(f"Completed project: {project_vm.name}")
             return 0
-        click.secho(self.app.project_presenter.present_error(result.error.message), fg='red', err=True)
+        click.secho(result.error.message, fg='red', err=True)
         return 1
+
 <file_end>todo_app/infrastructure/cli/click_cli_app.py</file_end>
 
 <file_start>todo_app/infrastructure/cli/simple_cli_app.py</file_start>
+from todo_app.interfaces.view_models.base import OperationResult
+from todo_app.interfaces.view_models.project_vm import ProjectViewModel
 from todo_app.infrastructure.config.container import Application
 
 
@@ -1051,30 +1090,37 @@ class SimpleCli:
 
     def _handle_create_task(self, title: str = "", description: str = "") -> int:
         result = self.app.task_controller.handle_create(title, description)
+        
         if result.is_success:
-            task_vm = self.app.task_presenter.present_task(result.value)
-            print(f"{task_vm.status_display} [{task_vm.priority_display}] {task_vm.title}")
+            task = result.success
+            print(f"{task.status_display} [{task.priority_display}] {task.title}")
             return 0
-        print(self.app.task_presenter.present_error(result.error.message))
+        
+        print(result.error.message)
         return 1
 
     def _handle_create_project(self, title: str = "", description: str = "") -> int:
-        result = self.app.project_controller.handle_create(title, description)
+        result: OperationResult[ProjectViewModel] = self.app.project_controller.handle_create(title, description)
+        
         if result.is_success:
-            project_vm = self.app.project_presenter.present_project(result.value)
+            project_vm = result.success
             print(f"Created project: {project_vm.name}")
             return 0
-        print(self.app.project_presenter.present_error(result.error.message))
+        
+        print(result.error.message)
         return 1
 
     def _handle_complete_project(self, id: str = "", completion_notes: str = "") -> int:
-        result = self.app.project_controller.handle_complete(id, completion_notes)
+        result: OperationResult[ProjectViewModel] = self.app.project_controller.handle_complete(id, completion_notes)
+        
         if result.is_success:
-            project_vm = self.app.project_presenter.present_project(result.value)
+            project_vm = result.success
             print(f"Completed project: {project_vm.name}")
             return 0
-        print(self.app.project_presenter.present_error(result.error.message))
+        
+        print(result.error.message)
         return 1
+
 <file_end>todo_app/infrastructure/cli/simple_cli_app.py</file_end>
 
 <file_start>todo_app/infrastructure/persistence/memory.py</file_start>
@@ -1196,10 +1242,11 @@ demonstrating how Clean Architecture enables swapping notification mechanisms
 while maintaining core functionality.
 """
 
+from dataclasses import dataclass
 from uuid import UUID
 from todo_app.application.ports.notifications import NotificationPort
 
-
+@dataclass
 class NotificationRecorder(NotificationPort):
     """
     Simple notification implementation for teaching Interface Adapters concepts.
@@ -1213,20 +1260,22 @@ class NotificationRecorder(NotificationPort):
     in actual notification service implementations.
     """
     
-    def __init__(self):
-        self.notifications: list[str] = []
+    def __init__(self) -> None:
+        self.completed_tasks = []
+        self.high_priority_tasks = []
+        self.deadline_warnings = []
 
     def notify_task_completed(self, task_id: UUID) -> None:
         """Record a task completion notification."""
         message = f"Task {task_id} has been completed"
         print(f"NOTIFICATION: {message}")
-        self.notifications.append(message)
+        self.completed_tasks.append(task_id)
 
     def notify_task_high_priority(self, task_id: UUID) -> None:
         """Record a high priority task notification."""
         message = f"Task {task_id} has been set to high priority"
         print(f"NOTIFICATION: {message}")
-        self.notifications.append(message)
+        self.high_priority_tasks.append(task_id)
 
     def notify_task_deadline_approaching(
         self, task_id: UUID, days_remaining: int
@@ -1234,7 +1283,7 @@ class NotificationRecorder(NotificationPort):
         """Record a deadline approaching notification."""
         message = f"Task {task_id} deadline approaching in {days_remaining} days"
         print(f"NOTIFICATION: {message}")
-        self.notifications.append(message)
+        self.deadline_warnings.append((task_id, days_remaining))
 <file_end>todo_app/infrastructure/notifications/recorder.py</file_end>
 
 <file_start>todo_app/domain/value_objects.py</file_start>
@@ -1520,6 +1569,7 @@ class TaskViewModel:
     project_display: Optional[str]  # Project name if available
     completion_info: Optional[str]  # Formatted completion details
 
+
 <file_end>todo_app/interfaces/view_models/task_vm.py</file_end>
 
 <file_start>todo_app/interfaces/view_models/project_vm.py</file_start>
@@ -1537,10 +1587,123 @@ class ProjectViewModel:
     status_display: str
     task_count: str  # e.g., "5 tasks (2 completed)"
     completion_info: Optional[str]
+
+@dataclass(frozen=True)
+class ProjectCompletionViewModel:
+    """View-specific representation of a project completion."""
+    project_id: str
+    completion_notes: Optional[str]
+    
 <file_end>todo_app/interfaces/view_models/project_vm.py</file_end>
+
+<file_start>todo_app/interfaces/view_models/base.py</file_start>
+from typing import Generic, TypeVar, Optional
+from dataclasses import dataclass
+
+T = TypeVar('T')
+
+@dataclass
+class ErrorViewModel:
+    """Represents an error with an optional error code.
+    
+    Attributes:
+        message: A human-readable error message
+        code: An optional error code for programmatic error handling
+    """
+    message: str
+    code: Optional[str] = None
+
+@dataclass
+class OperationResult(Generic[T]):
+    """Represents the result of an operation that can either succeed with a value or fail with an error.
+    
+    This class implements the Either pattern, where a result can only be either a success
+    or a failure, but never both or neither. This helps with explicit error handling and
+    avoiding None checks.  It also enables type checking with Mypy and other static type checkers.
+    
+    Type Parameters:
+        T: The type of the success value
+        
+    Attributes:
+        _success: The success value if the operation succeeded
+        _error: The error details if the operation failed
+    """
+    _success: Optional[T] = None
+    _error: Optional[ErrorViewModel] = None
+
+    def __init__(self, success: Optional[T] = None, error: Optional[ErrorViewModel] = None):
+        """Initialize the result with either a success value or an error.
+        
+        Args:
+            success: The success value if the operation succeeded
+            error: The error details if the operation failed
+            
+        Raises:
+            ValueError: If neither or both success and error are provided
+        """
+        if (success is None and error is None) or (success is not None and error is not None):
+            raise ValueError("Either success or error must be provided, but not both")
+        self._success = success
+        self._error = error
+
+    @property
+    def is_success(self) -> bool:
+        """Indicates whether the operation was successful."""
+        return self._success is not None
+
+    @property
+    def success(self) -> T:
+        """Returns the success value.
+        
+        Raises:
+            ValueError: If accessing success value on an error result
+        """
+        if self._success is None:
+            raise ValueError("Cannot access success value on error result")
+        return self._success
+
+    @property
+    def error(self) -> ErrorViewModel:
+        """Returns the error details.
+        
+        Raises:
+            ValueError: If accessing error value on a success result
+        """
+        if self._error is None:
+            raise ValueError("Cannot access error value on success result")
+        return self._error
+
+    @classmethod
+    def succeed(cls, value: T) -> 'OperationResult[T]':
+        """Creates a successful result with the given value.
+        
+        Args:
+            value: The success value
+            
+        Returns:
+            A new OperationResult instance representing success
+        """
+        return cls(success=value)
+
+    @classmethod
+    def fail(cls, message: str, code: Optional[str] = None) -> 'OperationResult[T]':
+        """Creates a failed result with the given error message and optional code.
+        
+        Args:
+            message: The error message
+            code: An optional error code
+            
+        Returns:
+            A new OperationResult instance representing failure
+        """
+        return cls(error=ErrorViewModel(message, code))
+
+<file_end>todo_app/interfaces/view_models/base.py</file_end>
 
 <file_start>todo_app/interfaces/presenters/cli.py</file_start>
 # interfaces/presenters/cli.py
+from typing import Optional
+from todo_app.interfaces.view_models.base import ErrorViewModel
 from todo_app.application.dtos.project_dtos import CompleteProjectResponse, ProjectResponse
 from todo_app.interfaces.view_models.project_vm import ProjectViewModel
 from todo_app.application.dtos.task_dtos import TaskResponse
@@ -1564,9 +1727,11 @@ class CliTaskPresenter(TaskPresenter):
             completion_info=f"Completed: {task_response.completion_date}" if task_response.completion_date else None
         )
     
-    def present_error(self, error_msg: str) -> str:
-        """Format error for CLI display."""
-        return f"Error: {error_msg}"
+    def present_error(self, error_msg: str, code: Optional[str] = None) -> ErrorViewModel:
+        return ErrorViewModel(
+            message=error_msg,
+            code=code
+        )
 
 class CliProjectPresenter(ProjectPresenter):
     """CLI-specific project presenter."""
@@ -1586,18 +1751,21 @@ class CliProjectPresenter(ProjectPresenter):
         """Format project completion for CLI display."""
         return f"Project {completion_response.id} completed on {completion_response.completion_date}"
     
-    def present_error(self, error_msg: str) -> str:
-        """Format error for CLI display."""
-        return f"Error: {error_msg}"
+    def present_error(self, error_msg: str, code: Optional[str] = None) -> ErrorViewModel:
+        return ErrorViewModel(
+            message=error_msg,
+            code=code
+        )
 <file_end>todo_app/interfaces/presenters/cli.py</file_end>
 
 <file_start>todo_app/interfaces/presenters/base.py</file_start>
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Optional
 
+from todo_app.interfaces.view_models.base import ErrorViewModel
 from todo_app.application.dtos.project_dtos import CompleteProjectResponse, ProjectResponse
 from todo_app.application.dtos.task_dtos import TaskResponse
-from todo_app.interfaces.view_models.project_vm import ProjectViewModel
+from todo_app.interfaces.view_models.project_vm import ProjectCompletionViewModel, ProjectViewModel
 from todo_app.interfaces.view_models.task_vm import TaskViewModel
 
 class TaskPresenter(ABC):
@@ -1609,7 +1777,7 @@ class TaskPresenter(ABC):
         pass
         
     @abstractmethod
-    def present_error(self, error_msg: str) -> str:
+    def present_error(self, error_msg: str, code: Optional[str] = None) -> ErrorViewModel:
         """Format error message for display."""
         pass
 
@@ -1622,12 +1790,12 @@ class ProjectPresenter(ABC):
         pass
         
     @abstractmethod
-    def present_completion(self, completion_response: CompleteProjectResponse) -> str:
+    def present_completion(self, completion_response: CompleteProjectResponse) -> ProjectCompletionViewModel:
         """Format project completion message."""
         pass
         
     @abstractmethod
-    def present_error(self, error_msg: str) -> str:
+    def present_error(self, error_msg: str, code: Optional[str] = None) -> ErrorViewModel:
         """Format error message for display."""
         pass
 <file_end>todo_app/interfaces/presenters/base.py</file_end>
@@ -1636,45 +1804,76 @@ class ProjectPresenter(ABC):
 from dataclasses import dataclass
 from typing import Optional
 
+from todo_app.interfaces.view_models.task_vm import TaskViewModel
+from todo_app.interfaces.view_models.base import OperationResult
 from todo_app.interfaces.presenters.base import TaskPresenter
 from todo_app.application.dtos.task_dtos import CompleteTaskRequest
-from todo_app.application.common.result import Result
 from todo_app.application.dtos.task_dtos import CreateTaskRequest
 from todo_app.application.use_cases.task_use_cases import CompleteTaskUseCase, CreateTaskUseCase
 
 
 @dataclass
 class TaskController:
-    """Controller for task-related operations."""
     create_use_case: CreateTaskUseCase
     complete_use_case: CompleteTaskUseCase
     presenter: TaskPresenter
 
-    def handle_create(self, title: str, description: str, **kwargs) -> Result:
-        """Handle task creation request."""
-        request = CreateTaskRequest(title=title, description=description)
-        result = self.create_use_case.execute(request)
-        return result
+    def handle_create(
+        self, 
+        title: str, 
+        description: str, 
+        **kwargs
+    ) -> OperationResult:
+        try:
+            request = CreateTaskRequest(title=title, description=description)
+            result = self.create_use_case.execute(request)
+            
+            if result.is_success:
+                view_model = self.presenter.present_task(result.value)
+                return OperationResult.succeed(view_model)
+            
+            error_vm = self.presenter.present_error(
+                result.error.message,
+                str(result.error.code)
+            )
+            return OperationResult.fail(error_vm.message, error_vm.code)
+            
+        except ValueError as e:
+            error_vm = self.presenter.present_error(str(e), "VALIDATION_ERROR")
+            return OperationResult.fail(error_vm.message, error_vm.code)
 
-    def handle_complete(self, task_id: str, notes: Optional[str] = None) -> Result:
-        """Handle task completion request."""
-        request = CompleteTaskRequest(task_id=task_id, completion_notes=notes)
-        result = self.complete_use_case.execute(request)
-        return result
+    def handle_complete(
+        self, 
+        task_id: str, 
+        notes: Optional[str] = None
+    ) -> OperationResult:
+        try:
+            request = CompleteTaskRequest(task_id=task_id, completion_notes=notes)
+            result = self.complete_use_case.execute(request)
+            
+            if result.is_success:
+                view_model = self.presenter.present_task(result.value)
+                return OperationResult.succeed(view_model)
+            
+            error_vm = self.presenter.present_error(
+                result.error.message,
+                str(result.error.code)
+            )
+            return OperationResult.fail(error_vm.message, error_vm.code)
+            
+        except ValueError as e:
+            error_vm = self.presenter.present_error(str(e), "VALIDATION_ERROR")
+            return OperationResult.fail(error_vm.message, error_vm.code)
 
 
 <file_end>todo_app/interfaces/controllers/task_controller.py</file_end>
-
-<file_start>todo_app/interfaces/controllers/deadline_controller.py</file_start>
-
-<file_end>todo_app/interfaces/controllers/deadline_controller.py</file_end>
 
 <file_start>todo_app/interfaces/controllers/project_controller.py</file_start>
 from dataclasses import dataclass
 from typing import Optional
 
 from todo_app.interfaces.presenters.base import ProjectPresenter
-from todo_app.application.common.result import Result
+from todo_app.interfaces.view_models.base import OperationResult
 from todo_app.application.dtos.project_dtos import CompleteProjectRequest, CreateProjectRequest
 from todo_app.application.use_cases.project_use_cases import CompleteProjectUseCase, CreateProjectUseCase
 
@@ -1686,16 +1885,44 @@ class ProjectController:
     complete_use_case: CompleteProjectUseCase
     presenter: ProjectPresenter
 
-    def handle_create(self, name: str, description: str = "") -> Result:
+    def handle_create(self, name: str, description: str = "") -> OperationResult:
         """Handle project creation request."""
-        request = CreateProjectRequest(name=name, description=description)
-        result = self.create_use_case.execute(request)
-        return result
+        try:
+            request = CreateProjectRequest(name=name, description=description)
+            result = self.create_use_case.execute(request)
+            
+            if result.is_success:
+                view_model = self.presenter.present_project(result.value)
+                return OperationResult.succeed(view_model)
+            
+            error_vm = self.presenter.present_error(
+                result.error.message,
+                str(result.error.code)
+            )
+            return OperationResult.fail(error_vm.message, error_vm.code)
+            
+        except ValueError as e:
+            error_vm = self.presenter.present_error(str(e), "VALIDATION_ERROR")
+            return OperationResult.fail(error_vm.message, error_vm.code)
 
-    def handle_complete(self, project_id: str, notes: Optional[str] = None) -> Result:
+    def handle_complete(self, project_id: str, notes: Optional[str] = None) -> OperationResult:
         """Handle project completion request."""
-        request = CompleteProjectRequest(project_id=project_id, completion_notes=notes)
-        result = self.complete_use_case.execute(request)
-        return result
+        try:
+            request = CompleteProjectRequest(project_id=project_id, completion_notes=notes)
+            result = self.complete_use_case.execute(request)
+            
+            if result.is_success:
+                view_model = self.presenter.present_project(result.value)
+                return OperationResult.succeed(view_model)
+            
+            error_vm = self.presenter.present_error(
+                result.error.message,
+                str(result.error.code)
+            )
+            return OperationResult.fail(error_vm.message, error_vm.code)
+            
+        except ValueError as e:
+            error_vm = self.presenter.present_error(str(e), "VALIDATION_ERROR")
+            return OperationResult.fail(error_vm.message, error_vm.code)
 <file_end>todo_app/interfaces/controllers/project_controller.py</file_end>
 

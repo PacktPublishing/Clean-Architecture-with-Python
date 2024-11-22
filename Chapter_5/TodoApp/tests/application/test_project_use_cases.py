@@ -48,7 +48,7 @@ def test_create_project():
     assert result.is_success
     assert result.value.name == "Test Project"
     assert result.value.description == "Test Description"
-    assert result.value.status == ProjectStatus.ACTIVE.value
+    assert result.value.status == ProjectStatus.ACTIVE
 
 
 def test_complete_project_without_tasks():
@@ -72,7 +72,7 @@ def test_complete_project_without_tasks():
 
     # Assert
     assert result.is_success
-    assert result.value.status == ProjectStatus.COMPLETED.value
+    assert result.value.status == ProjectStatus.COMPLETED
     assert result.value.completion_notes == "All done!"
     assert result.value.task_count == 0
 
@@ -127,7 +127,7 @@ def test_complete_project_with_completed_tasks():
 
     # Assert
     assert result.is_success
-    assert result.value.status == ProjectStatus.COMPLETED.value
+    assert result.value.status == ProjectStatus.COMPLETED
     assert result.value.task_count == 1
 
 

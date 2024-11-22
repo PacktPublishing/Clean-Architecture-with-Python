@@ -4,9 +4,12 @@ These DTOs handle data transformation between the outer layers and the applicati
 """
 
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Optional, Sequence, Self
 from uuid import UUID
 
+from todo_app.domain.exceptions import BusinessRuleViolation
+from todo_app.domain.value_objects import ProjectStatus
 from todo_app.application.dtos.task_dtos import TaskResponse
 from todo_app.domain.entities.project import Project
 
@@ -68,8 +71,8 @@ class ProjectResponse:
     id: str
     name: str
     description: str
-    status: str
-    completion_date: Optional[str]
+    status: ProjectStatus
+    completion_date: Optional[datetime]
     tasks: Sequence[TaskResponse]
 
     @classmethod
@@ -79,8 +82,8 @@ class ProjectResponse:
             id=str(project.id),
             name=project.name,
             description=project.description,
-            status=project.status.value,
-            completion_date=project.completed_at.isoformat() if project.completed_at else None,
+            status=project.status,
+            completion_date=project.completed_at if project.completed_at else None,
             tasks=[TaskResponse.from_entity(task) for task in project.tasks],
         )
 
@@ -90,18 +93,20 @@ class CompleteProjectResponse:
     """Response data specific to project completion."""
 
     id: str
-    status: str
-    completion_date: str
+    status: ProjectStatus
+    completion_date: datetime
     task_count: int
     completion_notes: Optional[str]
 
     @classmethod
     def from_entity(cls, project: Project) -> Self:
         """Create response from a Project entity."""
+        if project.completed_at is None:
+            raise BusinessRuleViolation("Project does not have a completion date")
         return cls(
             id=str(project.id),
-            status=project.status.value,
-            completion_date=project.completed_at.isoformat(),
+            status=project.status,
+            completion_date=project.completed_at,
             task_count=len(project.tasks),
             completion_notes=project.completion_notes,
         )

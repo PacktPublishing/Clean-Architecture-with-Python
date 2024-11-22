@@ -211,6 +211,8 @@ Key aspects:
 - Controllers depend on use cases and presenters through constructor injection
 - Transform primitive input data into DTOs for use cases
 - Return Result objects that can be interpreted by any UI (View Models)
+  - View Models typically contain fields of primitive types, enabling a specific 
+    Presenter (ex: `CliTaskPresenter`) to format those fields as needed.
 
 ### 2. Presenters
 Presenters transform use case responses into format-specific view models.
@@ -223,7 +225,7 @@ class TaskPresenter(ABC):
         pass
         
     @abstractmethod
-    def present_error(self, error_msg: str) -> str:
+    def present_error(self, error_msg: str, code: Optional[str] = None) -> ErrorViewModel:
         pass
 ```
 
@@ -231,12 +233,20 @@ class TaskPresenter(ABC):
 ```python
 class CliTaskPresenter(TaskPresenter):
     def present_task(self, task_response: TaskResponse) -> TaskViewModel:
+        """Format task for CLI display."""
         return TaskViewModel(
             id=task_response.id,
             title=task_response.title,
-            status_display=f"[{task_response.status}]",
-            priority_display=f"Priority: {task_response.priority}",
-            ...
+            description=task_response.description,
+            status_display=f"[{task_response.status.value}]",
+            priority_display=self._format_priority(task_response.priority),
+            due_date_display=self._format_due_date(task_response.due_date),
+            project_display=(
+                f"Project: {task_response.project_id}" if task_response.project_id else ""
+            ),
+            completion_info=self._format_completion_info(
+                task_response.completion_date, task_response.completion_notes
+            ),
         )
 ```
 
@@ -251,11 +261,12 @@ View models are simple data structures that represent the final format for displ
 ```python
 @dataclass(frozen=True)
 class TaskViewModel:
+    """View-specific representation of a task."""
     id: str
     title: str
-    status_display: str
-    priority_display: str
-    due_date_display: Optional[str]
+    description: str
+    status_display: str  # Human readable status
+    priority_display: str  # Human readable priority
     # ...
 ```
 

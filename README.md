@@ -17,3 +17,14 @@ Install dependencies
 ```shell
 > pip install --upgrade pip && pip install -r requirements.txt
 ```
+
+Run tests
+
+```shell
+## Go to the chapter folder
+> cd Chapter_5/TodoApp
+
+## Run tests
+> pytest
+```
+

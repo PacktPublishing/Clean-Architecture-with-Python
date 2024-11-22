@@ -5,6 +5,7 @@ from uuid import uuid4
 
 import pytest
 
+
 from todo_app.infrastructure.notifications.recorder import NotificationRecorder
 from todo_app.infrastructure.persistence.memory import InMemoryProjectRepository, InMemoryTaskRepository
 from todo_app.application.common.result import ErrorCode
@@ -27,7 +28,6 @@ from todo_app.domain.exceptions import (
 from todo_app.domain.value_objects import Priority, TaskStatus
 
 
-
 def test_create_task_basic():
     """Test creating a task with basic information."""
     # Arrange
@@ -46,8 +46,8 @@ def test_create_task_basic():
     assert result.is_success
     assert result.value.title == "Test Task"
     assert result.value.description == "Test Description"
-    assert result.value.status == TaskStatus.TODO.value
-    assert result.value.priority == Priority.MEDIUM.value
+    assert result.value.status == TaskStatus.TODO
+    assert result.value.priority == Priority.MEDIUM
 
 
 def test_create_task_with_project():
@@ -72,7 +72,7 @@ def test_create_task_with_project():
 
     # Assert
     assert result.is_success
-    assert result.value.project_id == str(project.id)
+    assert result.value.project_id == project.id
 
 
 def test_create_task_with_invalid_project():
@@ -116,7 +116,7 @@ def test_complete_task():
 
     # Assert
     assert result.is_success
-    assert result.value.status == TaskStatus.DONE.value
+    assert result.value.status == TaskStatus.DONE
     assert result.value.completion_notes == "Done!"
     assert task.id in notifications.completed_tasks
 
@@ -159,7 +159,7 @@ def test_set_task_priority():
 
     # Assert
     assert result.is_success
-    assert result.value.priority == Priority.HIGH.value
+    assert result.value.priority == Priority.HIGH
     assert task.id in notifications.high_priority_tasks
 
 

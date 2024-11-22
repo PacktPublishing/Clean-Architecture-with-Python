@@ -9,7 +9,7 @@ from typing import Optional, Self
 from uuid import UUID
 
 from todo_app.domain.entities.task import Task
-from todo_app.domain.value_objects import Deadline, Priority
+from todo_app.domain.value_objects import Deadline, Priority, TaskStatus
 
 
 @dataclass(frozen=True)
@@ -83,34 +83,29 @@ class CreateTaskRequest:
 
 @dataclass(frozen=True)
 class TaskResponse:
-    """Response data for task operations."""
-
-    id: str
+    """Response data for crossing Domain->Application boundary."""
+    id: str  # UUID conversion needed for boundary crossing
     title: str
     description: str
-    status: str
-    priority: int
-    due_date: Optional[str] = None
-    project_id: Optional[str] = None
-    completion_date: Optional[str] = None
+    status: TaskStatus
+    priority: Priority
+    due_date: Optional[datetime] = None
+    project_id: Optional[UUID] = None
+    completion_date: Optional[datetime] = None
     completion_notes: Optional[str] = None
 
     @classmethod
     def from_entity(cls, task: Task) -> Self:
         """Create response from a Task entity."""
         return cls(
-            id=str(task.id),
+            id=str(task.id),  # Basic conversion for boundary crossing
             title=task.title,
             description=task.description,
-            status=task.status.value,
-            priority=task.priority.value,
-            due_date=(
-                task.due_date.due_date.isoformat() if task.due_date else None
-            ),
-            project_id=str(task.project_id) if task.project_id else None,
-            completion_date=(
-                task.completed_at.isoformat() if task.completed_at else None
-            ),
+            status=task.status,
+            priority=task.priority,
+            due_date=task.due_date.due_date if task.due_date else None,
+            project_id=task.project_id,
+            completion_date=task.completed_at,
             completion_notes=task.completion_notes,
         )
 

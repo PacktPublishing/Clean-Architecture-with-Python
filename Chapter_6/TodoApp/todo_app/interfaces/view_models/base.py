@@ -1,44 +1,48 @@
 from typing import Generic, TypeVar, Optional
 from dataclasses import dataclass
 
-T = TypeVar('T')
+T = TypeVar("T")
 
-@dataclass
+
+@dataclass(frozen=True)
 class ErrorViewModel:
     """Represents an error with an optional error code.
-    
+
     Attributes:
         message: A human-readable error message
         code: An optional error code for programmatic error handling
     """
+
     message: str
     code: Optional[str] = None
+
 
 @dataclass
 class OperationResult(Generic[T]):
     """Represents the result of an operation that can either succeed with a value or fail with an error.
-    
+
     This class implements the Either pattern, where a result can only be either a success
     or a failure, but never both or neither. This helps with explicit error handling and
     avoiding None checks.  It also enables type checking with Mypy and other static type checkers.
-    
+
     Type Parameters:
         T: The type of the success value
-        
+
     Attributes:
         _success: The success value if the operation succeeded
         _error: The error details if the operation failed
     """
+
     _success: Optional[T] = None
     _error: Optional[ErrorViewModel] = None
 
     def __init__(self, success: Optional[T] = None, error: Optional[ErrorViewModel] = None):
         """Initialize the result with either a success value or an error.
-        
+
         Args:
             success: The success value if the operation succeeded
             error: The error details if the operation failed
-            
+
         Raises:
             ValueError: If neither or both success and error are provided
         """
@@ -55,7 +59,7 @@ class OperationResult(Generic[T]):
     @property
     def success(self) -> T:
         """Returns the success value.
-        
+
         Raises:
             ValueError: If accessing success value on an error result
         """
@@ -66,7 +70,7 @@ class OperationResult(Generic[T]):
     @property
     def error(self) -> ErrorViewModel:
         """Returns the error details.
-        
+
         Raises:
             ValueError: If accessing error value on a success result
         """
@@ -75,25 +79,25 @@ class OperationResult(Generic[T]):
         return self._error
 
     @classmethod
-    def succeed(cls, value: T) -> 'OperationResult[T]':
+    def succeed(cls, value: T) -> "OperationResult[T]":
         """Creates a successful result with the given value.
-        
+
         Args:
             value: The success value
-            
+
         Returns:
             A new OperationResult instance representing success
         """
         return cls(success=value)
 
     @classmethod
-    def fail(cls, message: str, code: Optional[str] = None) -> 'OperationResult[T]':
+    def fail(cls, message: str, code: Optional[str] = None) -> "OperationResult[T]":
         """Creates a failed result with the given error message and optional code.
-        
+
         Args:
             message: The error message
             code: An optional error code
-            
+
         Returns:
             A new OperationResult instance representing failure
         """
