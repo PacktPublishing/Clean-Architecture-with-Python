@@ -146,7 +146,7 @@ classDiagram
     class TaskPresenter {
         <<interface>>
         +present_task(task_response) TaskViewModel
-        +present_error(error_msg) str
+        +present_error(error_msg) ErrorViewModel
     }
     
     class TaskViewModel {
@@ -158,11 +158,16 @@ classDiagram
         +project_display: str
         +completion_info: str
     }
+
+    class ErrorViewModel {
+        +message: str
+        +code: Optional[str]
+    }
     
     %% Concrete Implementations
     class CliTaskPresenter {
         +present_task(task_response) TaskViewModel
-        +present_error(error_msg) str
+        +present_error(error_msg) ErrorViewModel
     }
     
     %% Dependencies from Application Layer
@@ -187,6 +192,7 @@ classDiagram
     TaskController --> CreateTaskUseCase : uses
     TaskController --> CompleteTaskUseCase : uses
     CliTaskPresenter ..> TaskViewModel : creates
+    CliTaskPresenter ..> ErrorViewModel : creates
     TaskPresenter ..> TaskResponse : transforms
 ```
 
@@ -201,10 +207,28 @@ class TaskController:
     complete_use_case: CompleteTaskUseCase
     presenter: TaskPresenter
 
-    def handle_create(self, title: str, description: str, **kwargs) -> Result:
-        request = CreateTaskRequest(title=title, description=description)
-        result = self.create_use_case.execute(request)
-        return result
+    def handle_create(self, title: str, description: str) -> OperationResult[TaskViewModel]:
+        try:
+            # Convert primitive input to use case request model specifically designed for the
+            # Interface->Application boundary crossing
+            # It contains validation specific to application needs
+            # Ensures data entering the application layer is properly formatted and validated
+            request = CreateTaskRequest(title=title, description=description)
+            # Execute use case and get domain-oriented result
+            result = self.create_use_case.execute(request)
+            if result.is_success:
+                # Convert domain response to view model
+                view_model = self.presenter.present_task(result.value)
+                return OperationResult.succeed(view_model)
+            # Handle domain errors
+            error_vm = self.presenter.present_error(
+                result.error.message, str(result.error.code.name)
+            )
+            return OperationResult.fail(error_vm.message, error_vm.code)
+        except ValueError as e:
+            # Handle validation errors
+            error_vm = self.presenter.present_error(str(e), "VALIDATION_ERROR")
+            return OperationResult.fail(error_vm.message, error_vm.code)
 ```
 
 Key aspects:
@@ -233,7 +257,6 @@ class TaskPresenter(ABC):
 ```python
 class CliTaskPresenter(TaskPresenter):
     def present_task(self, task_response: TaskResponse) -> TaskViewModel:
-        """Format task for CLI display."""
         return TaskViewModel(
             id=task_response.id,
             title=task_response.title,
@@ -332,7 +355,7 @@ sequenceDiagram
     else is error
         TC->>TP: present_error(error_msg)
         TP-->>TC: formatted error
-        TC-->>CLI: Result<Error>
+        TC-->>CLI: Result<ErrorViewModel>
         CLI->>CLI: display error
     end
 ```
