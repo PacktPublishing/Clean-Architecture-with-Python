@@ -16,11 +16,11 @@ maintaining core functionality.
 """
 
 from typing import Dict, Sequence
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from todo_app.domain.entities.task import Task
 from todo_app.domain.entities.project import Project
-from todo_app.domain.exceptions import TaskNotFoundError, ProjectNotFoundError
+from todo_app.domain.exceptions import InboxNotFoundError, TaskNotFoundError, ProjectNotFoundError
 from todo_app.domain.value_objects import TaskStatus
 from todo_app.application.repositories.task_repository import TaskRepository
 from todo_app.application.repositories.project_repository import ProjectRepository
@@ -29,17 +29,17 @@ from todo_app.application.repositories.project_repository import ProjectReposito
 class InMemoryTaskRepository(TaskRepository):
     """
     In-memory implementation of TaskRepository for teaching Interface Adapters concepts.
-    
+
     This class demonstrates how storage gateways work in Clean Architecture:
     - Implements interface defined by Application layer
     - Encapsulates storage details (in-memory dict in this case)
     - Maintains separation between storage and business logic
     - Handles storage-related errors
-    
+
     While simplified, this implementation establishes patterns that will be used
     in actual database implementations.
     """
-    
+
     def __init__(self):
         self._tasks: Dict[UUID, Task] = {}
 
@@ -59,27 +59,21 @@ class InMemoryTaskRepository(TaskRepository):
 
     def find_by_project(self, project_id: UUID) -> Sequence[Task]:
         """Find all tasks belonging to a project."""
-        return [
-            task for task in self._tasks.values()
-            if task.project_id == project_id
-        ]
+        return [task for task in self._tasks.values() if task.project_id == project_id]
 
     def get_active_tasks(self) -> Sequence[Task]:
         """Get all non-completed tasks."""
-        return [
-            task for task in self._tasks.values()
-            if task.status != TaskStatus.DONE
-        ]
+        return [task for task in self._tasks.values() if task.status != TaskStatus.DONE]
 
 
 class InMemoryProjectRepository(ProjectRepository):
     """
     In-memory implementation of ProjectRepository for teaching Interface Adapters concepts.
-    
+
     Similar to InMemoryTaskRepository, this class demonstrates gateway implementation
     patterns that will be used with actual databases in later chapters.
     """
-    
+
     def __init__(self):
         self._projects: Dict[UUID, Project] = {}
 
@@ -96,3 +90,9 @@ class InMemoryProjectRepository(ProjectRepository):
     def delete(self, project_id: UUID) -> None:
         """Delete a project if it exists."""
         self._projects.pop(project_id, None)
+
+    def get_inbox(self, inbox_name: str) -> Project:
+        for project in self._projects.values():
+            if project.name == inbox_name:
+                return project
+        raise InboxNotFoundError()

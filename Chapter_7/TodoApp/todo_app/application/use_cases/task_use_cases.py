@@ -5,6 +5,7 @@ This module contains use cases for task operations.
 from copy import deepcopy
 from dataclasses import dataclass
 
+from todo_app.domain.entities.project import Project
 from todo_app.application.common.result import Result, Error
 from todo_app.application.dtos.task_dtos import (
     CompleteTaskRequest,
@@ -23,6 +24,7 @@ from todo_app.application.repositories.task_repository import (
 )
 from todo_app.domain.entities.task import Task
 from todo_app.domain.exceptions import (
+    InboxNotFoundError,
     TaskNotFoundError,
     ProjectNotFoundError,
     ValidationError,
@@ -60,9 +62,7 @@ class CompleteTaskUseCase:
                 raise  # Re-raise the exception to be caught by outer try block
 
         except TaskNotFoundError:
-            return Result.failure(
-                Error.not_found("Task", str(params["task_id"]))
-            )
+            return Result.failure(Error.not_found("Task", str(params["task_id"])))
         except ValidationError as e:
             return Result.failure(Error.validation_error(str(e)))
         except BusinessRuleViolation as e:
@@ -80,35 +80,39 @@ class CreateTaskUseCase:
         """Execute the use case."""
         try:
             params = request.to_execution_params()
-
-            # If task is part of a project, verify project exists
-            project_id = params.get("project_id")
-            if project_id:
-                self.project_repository.get(project_id)
+            # If no project specified, get or create INBOX
+            project_id = params.get("project_id") or self._get_or_create_inbox().id
+            # verify project exists
+            self.project_repository.get(project_id)
 
             task = Task(
                 title=params["title"],
                 description=params["description"],
+                project_id=project_id,
                 due_date=params.get("deadline"),
                 priority=params.get("priority", Priority.MEDIUM),
             )
-
-            # Set the project_id if one was provided
-            if project_id:
-                task.project_id = project_id
 
             self.task_repository.save(task)
 
             return Result.success(TaskResponse.from_entity(task))
 
         except ProjectNotFoundError:
-            return Result.failure(
-                Error.not_found("Project", str(params.get("project_id")))
-            )
+            return Result.failure(Error.not_found("Project", str(params.get("project_id"))))
         except ValidationError as e:
             return Result.failure(Error.validation_error(str(e)))
         except BusinessRuleViolation as e:
             return Result.failure(Error.business_rule_violation(str(e)))
+
+    def _get_or_create_inbox(self) -> Project:
+        """Gets the INBOX project or creates it if it doesn't exist."""
+        try:
+            return self.project_repository.get_inbox(Project.INBOX_NAME)
+        except InboxNotFoundError:
+            # Create new INBOX if it doesn't exist
+            inbox = Project.create_inbox()
+            self.project_repository.save(inbox)
+            return inbox
 
 
 @dataclass

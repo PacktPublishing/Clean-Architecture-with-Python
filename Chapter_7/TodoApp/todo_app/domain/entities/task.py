@@ -17,12 +17,12 @@ class Task(Entity):
 
     title: str
     description: str
+    project_id: UUID
     due_date: Optional[Deadline] = None
     priority: Priority = Priority.MEDIUM
     status: TaskStatus = field(default=TaskStatus.TODO, init=False)
     completed_at: Optional[datetime] = field(default=None, init=False)
     completion_notes: Optional[str] = field(default=None, init=False)
-    project_id: Optional[UUID] = field(default=None, init=False)
 
     def start(self) -> None:
         """Mark the task as in progress."""

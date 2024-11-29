@@ -1,13 +1,16 @@
 # todo_app/tests/application/test_task_use_cases.py
 """Tests for task-related use cases."""
 
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
 
 from todo_app.infrastructure.notifications.recorder import NotificationRecorder
-from todo_app.infrastructure.persistence.memory import InMemoryProjectRepository, InMemoryTaskRepository
+from todo_app.infrastructure.persistence.memory import (
+    InMemoryProjectRepository,
+    InMemoryTaskRepository,
+)
 from todo_app.application.common.result import ErrorCode
 from todo_app.application.dtos.task_dtos import (
     CreateTaskRequest,
@@ -35,9 +38,7 @@ def test_create_task_basic():
     project_repo = InMemoryProjectRepository()
     use_case = CreateTaskUseCase(repo, project_repo)
 
-    request = CreateTaskRequest(
-        title="Test Task", description="Test Description"
-    )
+    request = CreateTaskRequest(title="Test Task", description="Test Description")
 
     # Act
     result = use_case.execute(request)
@@ -48,6 +49,10 @@ def test_create_task_basic():
     assert result.value.description == "Test Description"
     assert result.value.status == TaskStatus.TODO
     assert result.value.priority == Priority.MEDIUM
+    assert result.value.project_id is not None
+    # get project then assert that name is INBOX
+    project = project_repo.get(UUID(result.value.project_id))
+    assert project.name == Project.INBOX_NAME
 
 
 def test_create_task_with_project():
@@ -72,7 +77,7 @@ def test_create_task_with_project():
 
     # Assert
     assert result.is_success
-    assert result.value.project_id == project.id
+    assert result.value.project_id == str(project.id)
 
 
 def test_create_task_with_invalid_project():
@@ -104,12 +109,10 @@ def test_complete_task():
     use_case = CompleteTaskUseCase(repo, notifications)
 
     # Create and save a task
-    task = Task(title="Test Task", description="Test Description")
+    task = Task(title="Test Task", description="Test Description", project_id=uuid4())
     repo.save(task)
 
-    request = CompleteTaskRequest(
-        task_id=str(task.id), completion_notes="Done!"
-    )
+    request = CompleteTaskRequest(task_id=str(task.id), completion_notes="Done!")
 
     # Act
     result = use_case.execute(request)
@@ -128,9 +131,7 @@ def test_complete_nonexistent_task():
     notifications = NotificationRecorder()
     use_case = CompleteTaskUseCase(repo, notifications)
 
-    request = CompleteTaskRequest(
-        task_id=str(uuid4()), completion_notes="Done!"
-    )
+    request = CompleteTaskRequest(task_id=str(uuid4()), completion_notes="Done!")
 
     # Act
     result = use_case.execute(request)
@@ -149,7 +150,7 @@ def test_set_task_priority():
     use_case = SetTaskPriorityUseCase(repo, notifications)
 
     # Create and save a task
-    task = Task(title="Test Task", description="Test Description")
+    task = Task(title="Test Task", description="Test Description", project_id=uuid4())
     repo.save(task)
 
     request = SetTaskPriorityRequest(task_id=str(task.id), priority="HIGH")
@@ -170,7 +171,7 @@ def test_set_task_invalid_priority():
     notifications = NotificationRecorder()
     use_case = SetTaskPriorityUseCase(repo, notifications)
 
-    task = Task(title="Test Task", description="Test Description")
+    task = Task(title="Test Task", description="Test Description", project_id=uuid4())
     repo.save(task)
 
     with pytest.raises(ValueError) as exc_info:
@@ -181,7 +182,7 @@ def test_set_task_invalid_priority():
 
 def test_complete_task_handles_validation_error():
     """Test handling of ValidationError during task completion."""
-    task = Task(title="Test Task", description="Test Description")
+    task = Task(title="Test Task", description="Test Description", project_id=uuid4())
 
     class ValidationErrorTaskRepository(InMemoryTaskRepository):
         def save(self, task):
@@ -192,9 +193,7 @@ def test_complete_task_handles_validation_error():
     notifications = NotificationRecorder()
     use_case = CompleteTaskUseCase(repo, notifications)
 
-    request = CompleteTaskRequest(
-        task_id=str(task.id), completion_notes="Done!"
-    )
+    request = CompleteTaskRequest(task_id=str(task.id), completion_notes="Done!")
 
     result = use_case.execute(request)
 
@@ -206,7 +205,7 @@ def test_complete_task_handles_validation_error():
 
 def test_complete_task_handles_business_rule_violation():
     """Test handling of BusinessRuleViolation during task completion."""
-    task = Task(title="Test Task", description="Test Description")
+    task = Task(title="Test Task", description="Test Description", project_id=uuid4())
 
     class BusinessRuleTaskRepository(InMemoryTaskRepository):
         def save(self, task):
@@ -217,9 +216,7 @@ def test_complete_task_handles_business_rule_violation():
     notifications = NotificationRecorder()
     use_case = CompleteTaskUseCase(repo, notifications)
 
-    request = CompleteTaskRequest(
-        task_id=str(task.id), completion_notes="Done!"
-    )
+    request = CompleteTaskRequest(task_id=str(task.id), completion_notes="Done!")
 
     result = use_case.execute(request)
 
@@ -265,9 +262,7 @@ def test_create_task_handles_validation_error():
     project_repo = InMemoryProjectRepository()
     use_case = CreateTaskUseCase(task_repo, project_repo)
 
-    request = CreateTaskRequest(
-        title="Test Task", description="Test Description"
-    )
+    request = CreateTaskRequest(title="Test Task", description="Test Description")
 
     result = use_case.execute(request)
 
@@ -287,9 +282,7 @@ def test_create_task_handles_business_rule_violation():
     project_repo = InMemoryProjectRepository()
     use_case = CreateTaskUseCase(task_repo, project_repo)
 
-    request = CreateTaskRequest(
-        title="Test Task", description="Test Description"
-    )
+    request = CreateTaskRequest(title="Test Task", description="Test Description")
 
     result = use_case.execute(request)
 
@@ -327,7 +320,7 @@ def test_create_task_handles_validation_error_with_project():
 def test_complete_task_rolls_back_on_validation_error():
     """Test that task state is rolled back on ValidationError."""
     # Set up task
-    task = Task(title="Test Task", description="Test Description")
+    task = Task(title="Test Task", description="Test Description", project_id=uuid4())
 
     class FailingTaskRepository(InMemoryTaskRepository):
         def save(self, task):
@@ -342,9 +335,7 @@ def test_complete_task_rolls_back_on_validation_error():
     repo.save(task)
 
     use_case = CompleteTaskUseCase(repo, notifications)
-    request = CompleteTaskRequest(
-        task_id=str(task.id), completion_notes="Done!"
-    )
+    request = CompleteTaskRequest(task_id=str(task.id), completion_notes="Done!")
 
     # Execute use case (should fail)
     result = use_case.execute(request)
@@ -366,7 +357,7 @@ def test_complete_task_rolls_back_on_validation_error():
 def test_complete_task_rolls_back_on_business_rule_violation():
     """Test that task state is rolled back on BusinessRuleViolation."""
     # Set up task
-    task = Task(title="Test Task", description="Test Description")
+    task = Task(title="Test Task", description="Test Description", project_id=uuid4())
 
     class FailingTaskRepository(InMemoryTaskRepository):
         def save(self, task):
@@ -381,9 +372,7 @@ def test_complete_task_rolls_back_on_business_rule_violation():
     repo.save(task)
 
     use_case = CompleteTaskUseCase(repo, notifications)
-    request = CompleteTaskRequest(
-        task_id=str(task.id), completion_notes="Done!"
-    )
+    request = CompleteTaskRequest(task_id=str(task.id), completion_notes="Done!")
 
     # Execute use case (should fail)
     result = use_case.execute(request)
@@ -404,7 +393,7 @@ def test_complete_task_rolls_back_on_business_rule_violation():
 
 def test_complete_task_maintains_state_on_successful_completion():
     """Test that task state changes persist when completion is successful."""
-    task = Task(title="Test Task", description="Test Description")
+    task = Task(title="Test Task", description="Test Description", project_id=uuid4())
 
     repo = InMemoryTaskRepository()
     notifications = NotificationRecorder()
@@ -414,9 +403,7 @@ def test_complete_task_maintains_state_on_successful_completion():
 
     use_case = CompleteTaskUseCase(repo, notifications)
     completion_notes = "Done!"
-    request = CompleteTaskRequest(
-        task_id=str(task.id), completion_notes=completion_notes
-    )
+    request = CompleteTaskRequest(task_id=str(task.id), completion_notes=completion_notes)
 
     # Execute use case (should succeed)
     result = use_case.execute(request)
@@ -451,10 +438,7 @@ def test_create_task_with_nonexistent_project():
 
     assert not result.is_success
     assert result.error.code == ErrorCode.NOT_FOUND
-    assert (
-        "Project with id 123e4567-e89b-12d3-a456-426614174000 not found"
-        in result.error.message
-    )
+    assert "Project with id 123e4567-e89b-12d3-a456-426614174000 not found" in result.error.message
 
 
 def test_create_task_fails_with_malformed_project_id():
@@ -479,7 +463,7 @@ def test_set_task_priority_fails_with_malformed_task_id():
 def test_set_task_priority_handles_validation_error():
     """Test handling of ValidationError during priority setting."""
     # Create a task
-    task = Task(title="Test Task", description="Test Description")
+    task = Task(title="Test Task", description="Test Description", project_id=uuid4())
 
     class ValidationErrorTaskRepository(InMemoryTaskRepository):
         def save(self, task):

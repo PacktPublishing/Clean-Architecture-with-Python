@@ -84,13 +84,14 @@ class CreateTaskRequest:
 @dataclass(frozen=True)
 class TaskResponse:
     """Response data for crossing Domain->Application boundary."""
+
     id: str  # UUID conversion needed for boundary crossing
     title: str
     description: str
     status: TaskStatus
     priority: Priority
     due_date: Optional[datetime] = None
-    project_id: Optional[UUID] = None
+    project_id: Optional[str] = None
     completion_date: Optional[datetime] = None
     completion_notes: Optional[str] = None
 
@@ -104,7 +105,7 @@ class TaskResponse:
             status=task.status,
             priority=task.priority,
             due_date=task.due_date.due_date if task.due_date else None,
-            project_id=task.project_id,
+            project_id=str(task.project_id) if task.project_id else None,
             completion_date=task.completed_at,
             completion_notes=task.completion_notes,
         )
@@ -129,9 +130,7 @@ class SetTaskPriorityRequest:
             if priority_value not in [p.name for p in Priority]:
                 raise ValueError
         except (AttributeError, ValueError):
-            raise ValueError(
-                f"Priority must be one of: {', '.join(p.name for p in Priority)}"
-            )
+            raise ValueError(f"Priority must be one of: {', '.join(p.name for p in Priority)}")
         try:
             UUID(self.task_id)
         except ValueError:

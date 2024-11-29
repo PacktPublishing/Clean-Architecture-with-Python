@@ -1,7 +1,7 @@
+from uuid import uuid4
 from todo_app.infrastructure.persistence.memory import InMemoryTaskRepository
 from todo_app.domain.entities.task import Task
 from todo_app.domain.value_objects import TaskStatus
-
 
 
 def test_get_active_tasks_empty_repository():
@@ -16,9 +16,9 @@ def test_get_active_tasks_only_active():
     repo = InMemoryTaskRepository()
 
     # Create and save three active tasks
-    task1 = Task(title="Task 1", description="Test")
-    task2 = Task(title="Task 2", description="Test")
-    task3 = Task(title="Task 3", description="Test")
+    task1 = Task(title="Task 1", description="Test", project_id=uuid4())
+    task2 = Task(title="Task 2", description="Test", project_id=uuid4())
+    task3 = Task(title="Task 3", description="Test", project_id=uuid4())
 
     repo.save(task1)
     repo.save(task2)
@@ -34,10 +34,10 @@ def test_get_active_tasks_mixed_status():
     repo = InMemoryTaskRepository()
 
     # Create and save tasks with different statuses
-    todo_task = Task(title="Todo Task", description="Test")
-    in_progress_task = Task(title="In Progress Task", description="Test")
+    todo_task = Task(title="Todo Task", description="Test", project_id=uuid4())
+    in_progress_task = Task(title="In Progress Task", description="Test", project_id=uuid4())
     in_progress_task.start()  # Sets status to IN_PROGRESS
-    completed_task = Task(title="Completed Task", description="Test")
+    completed_task = Task(title="Completed Task", description="Test", project_id=uuid4())
     completed_task.complete()  # Sets status to DONE
 
     repo.save(todo_task)
@@ -55,9 +55,9 @@ def test_get_active_tasks_only_completed():
     repo = InMemoryTaskRepository()
 
     # Create and save three completed tasks
-    task1 = Task(title="Task 1", description="Test")
-    task2 = Task(title="Task 2", description="Test")
-    task3 = Task(title="Task 3", description="Test")
+    task1 = Task(title="Task 1", description="Test", project_id=uuid4())
+    task2 = Task(title="Task 2", description="Test", project_id=uuid4())
+    task3 = Task(title="Task 3", description="Test", project_id=uuid4())
 
     for task in [task1, task2, task3]:
         task.complete()
@@ -72,9 +72,9 @@ def test_get_active_tasks_after_completion():
     repo = InMemoryTaskRepository()
 
     # Create and save initial tasks
-    task1 = Task(title="Task 1", description="Test")
-    task2 = Task(title="Task 2", description="Test")
-    task3 = Task(title="Task 3", description="Test")
+    task1 = Task(title="Task 1", description="Test", project_id=uuid4())
+    task2 = Task(title="Task 2", description="Test", project_id=uuid4())
+    task3 = Task(title="Task 3", description="Test", project_id=uuid4())
 
     repo.save(task1)
     repo.save(task2)

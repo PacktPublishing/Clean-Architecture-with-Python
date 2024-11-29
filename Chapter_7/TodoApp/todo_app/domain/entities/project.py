@@ -1,8 +1,10 @@
 from dataclasses import dataclass, field
 from datetime import datetime
+from inspect import stack
 from typing import Optional
 from uuid import UUID
 
+from todo_app.domain.exceptions import BusinessRuleViolation
 from todo_app.domain.entities.entity import Entity
 from todo_app.domain.entities.task import Task
 from todo_app.domain.value_objects import (
@@ -15,6 +17,8 @@ from todo_app.domain.value_objects import (
 class Project(Entity):
     """A project containing multiple tasks."""
 
+    INBOX_NAME = "INBOX"  # Class constant for the special inbox name
+
     name: str
     description: str = ""
     status: ProjectStatus = field(default=ProjectStatus.ACTIVE, init=False)
@@ -22,17 +26,30 @@ class Project(Entity):
     completion_notes: Optional[str] = field(default=None, init=False)
     _tasks: dict[UUID, Task] = field(default_factory=dict, init=False)
 
+    def __post_init__(self) -> None:
+        # Only allow INBOX_NAME as project name if created via create_inbox()
+        if self.name == self.INBOX_NAME:
+            caller_frames = stack()
+            create_inbox_called = any(frame.function == "create_inbox" for frame in caller_frames)
+            if not create_inbox_called:
+                raise BusinessRuleViolation(f"'{self.INBOX_NAME}' is a reserved name.")
+
+    @classmethod
+    def create_inbox(cls) -> "Project":
+        """Creates the special INBOX project."""
+        return cls(name=cls.INBOX_NAME, description="Default project for unassigned tasks")
+
+    @property
+    def is_inbox(self) -> bool:
+        """Whether this project is the special INBOX project."""
+        return self.name == self.INBOX_NAME
+
     def add_task(self, task: Task) -> None:
         """Add a task to the project."""
         if self.status == ProjectStatus.COMPLETED:
             raise ValueError("Cannot add tasks to a completed project")
         self._tasks[task.id] = task
         task.project_id = self.id
-
-    def remove_task(self, task_id: UUID) -> None:
-        """Remove a task from the project."""
-        if task := self._tasks.pop(task_id, None):
-            task.project_id = None
 
     def get_task(self, task_id: UUID) -> Optional[Task]:
         """Get a task by its ID."""
@@ -55,6 +72,8 @@ class Project(Entity):
         Args:
             notes: Optional completion notes
         """
+        if self.name == self.INBOX_NAME:
+            raise BusinessRuleViolation("The INBOX project cannot be completed")
         self.status = ProjectStatus.COMPLETED
         self.completed_at = datetime.now()
         self.completion_notes = notes
