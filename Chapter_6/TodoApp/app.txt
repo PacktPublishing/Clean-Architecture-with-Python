@@ -1,0 +1,4742 @@
+# Personal Task managemnt app POC
+
+<file_start>main.py</file_start>
+#!/usr/bin/env python
+"""
+Command Line Interface entry point for the Todo application.
+
+This module serves as the composition root for the CLI interface,
+demonstrating how Clean Architecture allows for different interfaces
+to the same core application.
+"""
+
+import sys
+import os
+from typing import Type
+
+from todo_app.infrastructure.cli.simple_cli_app import SimpleCli
+from todo_app.infrastructure.cli.click_cli_app import ClickCli
+from todo_app.infrastructure.config.container import Application
+from todo_app.infrastructure.persistence.memory import (
+    InMemoryTaskRepository,
+    InMemoryProjectRepository,
+)
+from todo_app.infrastructure.notifications.recorder import NotificationRecorder
+from todo_app.interfaces.presenters.cli import CliTaskPresenter, CliProjectPresenter
+
+
+def create_application() -> Application:
+    """
+    Create and configure the application container with all required dependencies.
+    This acts as our composition root where concrete implementations are selected.
+    """
+    return Application(
+        task_repository=InMemoryTaskRepository(),
+        project_repository=InMemoryProjectRepository(),
+        notification_service=NotificationRecorder(),
+        task_presenter=CliTaskPresenter(),
+        project_presenter=CliProjectPresenter()
+    )
+
+
+def get_cli_implementation(cli_type: str) -> Type:
+    """
+    Factory function to get the appropriate CLI implementation.
+    This allows us to switch between different CLI frameworks while
+    maintaining the same core application logic.
+    """
+    cli_implementations = {
+        'simple': SimpleCli,
+        'click': ClickCli
+    }
+    return cli_implementations.get(cli_type, SimpleCli)
+
+
+def main(cli_type: str) -> int:
+    """
+    Main entry point for the CLI application.
+    
+    Args:
+        cli_type: Optional CLI implementation to use ('simple' or 'click')
+                 If not specified, defaults to 'simple'
+    
+    Returns:
+        Exit code (0 for success, non-zero for errors)
+    """
+    try:
+        app = create_application()
+        cli_class = get_cli_implementation(cli_type)
+        cli = cli_class(app)
+        
+        # Handle different CLI types
+        if cli_type == 'simple':
+            # Get command and args from sys.argv, skipping script name
+            args = sys.argv[1:]
+            if not args:
+                print("Error: Command required for simple CLI", file=sys.stderr)
+                return 1
+            command = args[0]
+            # Convert remaining args to kwargs (assuming format: --key value)
+            kwargs = dict(zip(args[1::2], args[2::2]))
+            return cli.run(command, **kwargs)
+        else:
+            # Click CLI handles its own argument parsing
+            return cli.run()
+        
+    except Exception as e:
+        print(f"Error: {str(e)}", file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    # Get CLI type from environment variable, defaulting to 'simple'
+    cli_type = os.environ.get('TODO_CLI_TYPE', 'simple')
+    sys.exit(main(cli_type))
+<file_end>main.py</file_end>
+
+<file_start>todo_app/application/repositories/project_repository.py</file_start>
+"""
+This module defines the repository interface for Project entity persistence.
+"""
+
+from abc import ABC, abstractmethod
+from uuid import UUID
+
+from todo_app.domain.entities.project import Project
+
+
+class ProjectRepository(ABC):
+    """Repository interface for Project entity persistence."""
+
+    @abstractmethod
+    def get(self, project_id: UUID) -> Project:
+        """
+        Retrieve a project by its ID.
+
+        Args:
+            project_id: The unique identifier of the project
+
+        Returns:
+            The requested Project entity
+
+        Raises:
+            ProjectNotFoundError: If no project exists with the given ID
+        """
+        pass
+
+    @abstractmethod
+    def save(self, project: Project) -> None:
+        """
+        Save a project to the repository.
+
+        Args:
+            project: The Project entity to save
+        """
+        pass
+
+    @abstractmethod
+    def delete(self, project_id: UUID) -> None:
+        """
+        Delete a project from the repository.
+
+        Args:
+            project_id: The unique identifier of the project to delete
+        """
+        pass
+
+<file_end>todo_app/application/repositories/project_repository.py</file_end>
+
+<file_start>todo_app/application/repositories/task_repository.py</file_start>
+"""
+This module defines the repository interface for Task entity persistence.
+"""
+
+from abc import ABC, abstractmethod
+from typing import Sequence
+from uuid import UUID
+
+from todo_app.domain.entities.task import Task
+
+
+class TaskRepository(ABC):
+    """Repository interface for Task entity persistence."""
+
+    @abstractmethod
+    def get(self, task_id: UUID) -> Task:
+        """
+        Retrieve a task by its ID.
+
+        Args:
+            task_id: The unique identifier of the task
+
+        Returns:
+            The requested Task entity
+
+        Raises:
+            TaskNotFoundError: If no task exists with the given ID
+        """
+        pass
+
+    @abstractmethod
+    def save(self, task: Task) -> None:
+        """
+        Save a task to the repository.
+
+        Args:
+            task: The Task entity to save
+        """
+        pass
+
+    @abstractmethod
+    def delete(self, task_id: UUID) -> None:
+        """
+        Delete a task from the repository.
+
+        Args:
+            task_id: The unique identifier of the task to delete
+        """
+        pass
+
+    @abstractmethod
+    def find_by_project(self, project_id: UUID) -> Sequence[Task]:
+        """
+        Find all tasks associated with a project.
+
+        Args:
+            project_id: The unique identifier of the project
+
+        Returns:
+            A sequence of Task entities belonging to the project
+        """
+        pass
+
+    @abstractmethod
+    def get_active_tasks(self) -> Sequence[Task]:
+        """
+        Retrieve all active tasks in the repository.
+
+        Returns:
+            A sequence of all active Tasks
+        """
+        pass
+
+<file_end>todo_app/application/repositories/task_repository.py</file_end>
+
+<file_start>todo_app/application/dtos/task_dtos.py</file_start>
+"""
+This module contains request and response data transfer objects (DTOs) for task operations.
+These DTOs handle data transformation between the outer layers and the application core.
+"""
+
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Optional, Self
+from uuid import UUID
+
+from todo_app.domain.entities.task import Task
+from todo_app.domain.value_objects import Deadline, Priority, TaskStatus
+
+
+@dataclass(frozen=True)
+class CompleteTaskRequest:
+    """Request data for completing a task."""
+
+    task_id: str
+    completion_notes: Optional[str] = None
+
+    def __post_init__(self) -> None:
+        """Validate request data"""
+        if not self.task_id.strip():
+            raise ValueError("Task ID is required")
+        if self.completion_notes and len(self.completion_notes) > 1000:
+            raise ValueError("Completion notes cannot exceed 1000 characters")
+        try:
+            UUID(self.task_id)
+        except ValueError:
+            raise ValueError("Invalid task ID format")
+
+    def to_execution_params(self) -> dict:
+        """Convert request data to use case parameters."""
+        return {
+            "task_id": UUID(self.task_id),
+            "completion_notes": self.completion_notes,
+        }
+
+
+@dataclass(frozen=True)
+class CreateTaskRequest:
+    """Request data for creating a new task."""
+
+    title: str
+    description: str
+    due_date: Optional[str] = None
+    priority: Optional[str] = None
+    project_id: Optional[str] = None
+
+    def __post_init__(self) -> None:
+        """Validate request data"""
+        if not self.title.strip():
+            raise ValueError("Title is required")
+        if len(self.title) > 200:
+            raise ValueError("Title cannot exceed 200 characters")
+        if len(self.description) > 2000:
+            raise ValueError("Description cannot exceed 2000 characters")
+        if self.project_id:
+            try:
+                UUID(self.project_id)
+            except ValueError:
+                raise ValueError("Invalid project ID format")
+
+    def to_execution_params(self) -> dict:
+        """Convert request data to use case parameters."""
+        params = {
+            "title": self.title.strip(),
+            "description": self.description.strip(),
+        }
+
+        if self.due_date:
+            params["deadline"] = Deadline(datetime.fromisoformat(self.due_date))
+
+        if self.priority:
+            params["priority"] = Priority[self.priority.upper()]
+
+        if self.project_id:
+            params["project_id"] = UUID(self.project_id)
+
+        return params
+
+
+@dataclass(frozen=True)
+class TaskResponse:
+    """Response data for crossing Domain->Application boundary."""
+    id: str  # UUID conversion needed for boundary crossing
+    title: str
+    description: str
+    status: TaskStatus
+    priority: Priority
+    due_date: Optional[datetime] = None
+    project_id: Optional[UUID] = None
+    completion_date: Optional[datetime] = None
+    completion_notes: Optional[str] = None
+
+    @classmethod
+    def from_entity(cls, task: Task) -> Self:
+        """Create response from a Task entity."""
+        return cls(
+            id=str(task.id),  # Basic conversion for boundary crossing
+            title=task.title,
+            description=task.description,
+            status=task.status,
+            priority=task.priority,
+            due_date=task.due_date.due_date if task.due_date else None,
+            project_id=task.project_id,
+            completion_date=task.completed_at,
+            completion_notes=task.completion_notes,
+        )
+
+
+@dataclass(frozen=True)
+class SetTaskPriorityRequest:
+    """Request data for updating task priority."""
+
+    task_id: str
+    priority: str
+
+    def __post_init__(self) -> None:
+        """Validate request data"""
+        if not self.task_id.strip():
+            raise ValueError("Task ID is required")
+
+        try:
+            priority_value = self.priority.strip().upper()
+            if not priority_value:
+                raise ValueError
+            if priority_value not in [p.name for p in Priority]:
+                raise ValueError
+        except (AttributeError, ValueError):
+            raise ValueError(
+                f"Priority must be one of: {', '.join(p.name for p in Priority)}"
+            )
+        try:
+            UUID(self.task_id)
+        except ValueError:
+            raise ValueError("Invalid task ID format")
+
+    def to_execution_params(self) -> dict:
+        """Convert request data to use case parameters."""
+        return {
+            "task_id": UUID(self.task_id),
+            "priority": Priority[self.priority.upper()],
+        }
+
+<file_end>todo_app/application/dtos/task_dtos.py</file_end>
+
+<file_start>todo_app/application/dtos/project_dtos.py</file_start>
+"""
+This module contains request and response data transfer objects (DTOs) for project operations.
+These DTOs handle data transformation between the outer layers and the application core.
+"""
+
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Optional, Sequence, Self
+from uuid import UUID
+
+from todo_app.domain.exceptions import BusinessRuleViolation
+from todo_app.domain.value_objects import ProjectStatus
+from todo_app.application.dtos.task_dtos import TaskResponse
+from todo_app.domain.entities.project import Project
+
+
+@dataclass(frozen=True)
+class CreateProjectRequest:
+    """Request data for creating a new project."""
+
+    name: str
+    description: str = ""
+
+    def __post_init__(self) -> None:
+        """Validate request data"""
+        if not self.name.strip():
+            raise ValueError("Project name is required")
+        if len(self.name) > 100:
+            raise ValueError("Project name cannot exceed 100 characters")
+        if len(self.description) > 2000:
+            raise ValueError("Description cannot exceed 2000 characters")
+
+    def to_execution_params(self) -> dict:
+        """Convert request data to use case parameters."""
+        return {
+            "name": self.name.strip(),
+            "description": self.description.strip(),
+        }
+
+
+@dataclass(frozen=True)
+class CompleteProjectRequest:
+    """Request data for completing a project."""
+
+    project_id: str
+    completion_notes: Optional[str] = None
+
+    def __post_init__(self) -> None:
+        """Validate request data"""
+        if not self.project_id.strip():
+            raise ValueError("Project ID is required")
+        if self.completion_notes and len(self.completion_notes) > 1000:
+            raise ValueError("Completion notes cannot exceed 1000 characters")
+        try:
+            UUID(self.project_id)
+        except ValueError:
+            raise ValueError("Invalid project ID format")
+
+    def to_execution_params(self) -> dict:
+        """Convert request data to use case parameters."""
+        return {
+            "project_id": UUID(self.project_id),
+            "completion_notes": self.completion_notes,
+        }
+
+
+@dataclass(frozen=True)
+class ProjectResponse:
+    """Response data for basic project operations."""
+
+    id: str
+    name: str
+    description: str
+    status: ProjectStatus
+    completion_date: Optional[datetime]
+    tasks: Sequence[TaskResponse]
+
+    @classmethod
+    def from_entity(cls, project: Project) -> Self:
+        """Create response from a Project entity."""
+        return cls(
+            id=str(project.id),
+            name=project.name,
+            description=project.description,
+            status=project.status,
+            completion_date=project.completed_at if project.completed_at else None,
+            tasks=[TaskResponse.from_entity(task) for task in project.tasks],
+        )
+
+
+@dataclass(frozen=True)
+class CompleteProjectResponse:
+    """Response data specific to project completion."""
+
+    id: str
+    status: ProjectStatus
+    completion_date: datetime
+    task_count: int
+    completion_notes: Optional[str]
+
+    @classmethod
+    def from_entity(cls, project: Project) -> Self:
+        """Create response from a Project entity."""
+        if project.completed_at is None:
+            raise BusinessRuleViolation("Project does not have a completion date")
+        return cls(
+            id=str(project.id),
+            status=project.status,
+            completion_date=project.completed_at,
+            task_count=len(project.tasks),
+            completion_notes=project.completion_notes,
+        )
+
+<file_end>todo_app/application/dtos/project_dtos.py</file_end>
+
+<file_start>todo_app/application/common/result.py</file_start>
+"""
+This module contains the core error handling and result types for the application layer.
+These types provide a consistent way to handle success and failure cases across all use cases.
+"""
+
+from dataclasses import dataclass
+from enum import Enum
+from typing import Any, Optional, Generic, TypeVar, Self
+
+T = TypeVar('T')  # Success type
+
+class ErrorCode(Enum):
+    """Enumeration of possible error codes in the application layer."""
+
+    NOT_FOUND = "NOT_FOUND"
+    VALIDATION_ERROR = "VALIDATION_ERROR"
+    BUSINESS_RULE_VIOLATION = "BUSINESS_RULE_VIOLATION"
+    UNAUTHORIZED = "UNAUTHORIZED"
+    CONFLICT = "CONFLICT"
+
+
+@dataclass(frozen=True)
+class Error:
+    """
+    Represents an error that occurred during use case execution.
+
+    This class provides a standardized way to represent errors across the application layer,
+    including the specific type of error (via ErrorCode) and any additional context.
+
+    Attributes:
+        code: The type of error that occurred
+        message: A human-readable description of the error
+        details: Optional additional context about the error
+    """
+
+    code: ErrorCode
+    message: str
+    details: Optional[dict[str, Any]] = None
+
+    @classmethod
+    def not_found(cls, entity: str, entity_id: str) -> Self:
+        """Create a NOT_FOUND error for a specific entity."""
+        return cls(
+            code=ErrorCode.NOT_FOUND,
+            message=f"{entity} with id {entity_id} not found",
+        )
+
+    @classmethod
+    def validation_error(cls, message: str) -> Self:
+        """Create a VALIDATION_ERROR with the specified message."""
+        return cls(code=ErrorCode.VALIDATION_ERROR, message=message)
+
+    @classmethod
+    def business_rule_violation(cls, message: str) -> Self:
+        """Create a BUSINESS_RULE_VIOLATION error with the specified message."""
+        return cls(code=ErrorCode.BUSINESS_RULE_VIOLATION, message=message)
+
+
+@dataclass(frozen=True)
+class Result(Generic[T]):
+    """
+    Represents the outcome of a use case execution as an Either type.
+
+    This class encapsulates the result of an operation, which can either be a success
+    containing a value of type T, or a failure containing an Error. It enforces that
+    only one of these states can exist at a time, providing a clear and type-safe way
+    to handle operation results.
+
+    Attributes:
+        _value: The success value of the operation, if successful.
+        _error: The error information, if the operation failed.
+
+    Methods:
+        is_success: Returns True if the result is a success, False if it is a failure.
+        value: Returns the success value if the result is a success, raises ValueError otherwise.
+        error: Returns the error if the result is a failure, raises ValueError otherwise.
+        success: Class method to create a successful result.
+        failure: Class method to create a failed result.
+    """
+
+    _value: Optional[T] = None
+    _error: Optional[Error] = None
+
+    def __post_init__(self):
+        if (self._value is None and self._error is None) or \
+           (self._value is not None and self._error is not None):
+            raise ValueError("Either value or error must be provided, but not both")
+
+    @property
+    def is_success(self) -> bool:
+        """Check if the result represents a successful operation."""
+        return self._value is not None
+
+    @property
+    def value(self) -> T:
+        """Get the success value. Raises ValueError if result is an error."""
+        if self._value is None:
+            raise ValueError("Cannot access value on error result")
+        return self._value
+
+    @property
+    def error(self) -> Error:
+        """Get the error value. Raises ValueError if result is successful."""
+        if self._error is None:
+            raise ValueError("Cannot access error on success result")
+        return self._error
+
+    @classmethod
+    def success(cls, value: T) -> 'Result[T]':
+        """Create a successful result with the given value."""
+        return cls(_value=value)
+
+    @classmethod
+    def failure(cls, error: Error) -> 'Result[T]':
+        """Create a failed result with the given error."""
+        return cls(_error=error)
+
+<file_end>todo_app/application/common/result.py</file_end>
+
+<file_start>todo_app/application/use_cases/task_use_cases.py</file_start>
+"""
+This module contains use cases for task operations.
+"""
+
+from copy import deepcopy
+from dataclasses import dataclass
+
+from todo_app.application.common.result import Result, Error
+from todo_app.application.dtos.task_dtos import (
+    CompleteTaskRequest,
+    CreateTaskRequest,
+    TaskResponse,
+    SetTaskPriorityRequest,
+)
+from todo_app.application.ports.notifications import (
+    NotificationPort,
+)
+from todo_app.application.repositories.project_repository import (
+    ProjectRepository,
+)
+from todo_app.application.repositories.task_repository import (
+    TaskRepository,
+)
+from todo_app.domain.entities.task import Task
+from todo_app.domain.exceptions import (
+    TaskNotFoundError,
+    ProjectNotFoundError,
+    ValidationError,
+    BusinessRuleViolation,
+)
+from todo_app.domain.value_objects import Priority
+
+
+@dataclass
+class CompleteTaskUseCase:
+    """Use case for marking a task as complete and notifying stakeholders."""
+
+    task_repository: TaskRepository
+    notification_service: NotificationPort
+
+    def execute(self, request: CompleteTaskRequest) -> Result:
+        """Execute the use case."""
+        try:
+            params = request.to_execution_params()
+            task = self.task_repository.get(params["task_id"])
+
+            # Take snapshot of initial state
+            task_snapshot = deepcopy(task)
+
+            try:
+                task.complete(notes=params["completion_notes"])
+                self.task_repository.save(task)
+                self.notification_service.notify_task_completed(task.id)
+
+                return Result.success(TaskResponse.from_entity(task))
+
+            except (ValidationError, BusinessRuleViolation) as e:
+                # Restore task state
+                self.task_repository.save(task_snapshot)
+                raise  # Re-raise the exception to be caught by outer try block
+
+        except TaskNotFoundError:
+            return Result.failure(
+                Error.not_found("Task", str(params["task_id"]))
+            )
+        except ValidationError as e:
+            return Result.failure(Error.validation_error(str(e)))
+        except BusinessRuleViolation as e:
+            return Result.failure(Error.business_rule_violation(str(e)))
+
+
+@dataclass
+class CreateTaskUseCase:
+    """Use case for creating a new task."""
+
+    task_repository: TaskRepository
+    project_repository: ProjectRepository
+
+    def execute(self, request: CreateTaskRequest) -> Result:
+        """Execute the use case."""
+        try:
+            params = request.to_execution_params()
+
+            # If task is part of a project, verify project exists
+            project_id = params.get("project_id")
+            if project_id:
+                self.project_repository.get(project_id)
+
+            task = Task(
+                title=params["title"],
+                description=params["description"],
+                due_date=params.get("deadline"),
+                priority=params.get("priority", Priority.MEDIUM),
+            )
+
+            # Set the project_id if one was provided
+            if project_id:
+                task.project_id = project_id
+
+            self.task_repository.save(task)
+
+            return Result.success(TaskResponse.from_entity(task))
+
+        except ProjectNotFoundError:
+            return Result.failure(
+                Error.not_found("Project", str(params.get("project_id")))
+            )
+        except ValidationError as e:
+            return Result.failure(Error.validation_error(str(e)))
+        except BusinessRuleViolation as e:
+            return Result.failure(Error.business_rule_violation(str(e)))
+
+
+@dataclass
+class SetTaskPriorityUseCase:
+    task_repository: TaskRepository
+    notification_service: NotificationPort  # Depends on capability interface
+
+    def execute(self, request: SetTaskPriorityRequest) -> Result:
+        try:
+            params = request.to_execution_params()
+
+            task = self.task_repository.get(params["task_id"])
+            task.priority = params["priority"]
+
+            self.task_repository.save(task)
+
+            if task.priority == Priority.HIGH:
+                self.notification_service.notify_task_high_priority(task.id)
+
+            return Result.success(TaskResponse.from_entity(task))
+        except ValidationError as e:
+            return Result.failure(Error.validation_error(str(e)))
+
+<file_end>todo_app/application/use_cases/task_use_cases.py</file_end>
+
+<file_start>todo_app/application/use_cases/deadline_use_cases.py</file_start>
+from dataclasses import field, dataclass
+from datetime import timedelta
+
+from todo_app.application.common.result import Result, Error
+from todo_app.application.ports.notifications import (
+    NotificationPort,
+)
+from todo_app.application.repositories.task_repository import (
+    TaskRepository,
+)
+from todo_app.domain.exceptions import (
+    TaskNotFoundError,
+    ValidationError,
+    BusinessRuleViolation,
+)
+
+
+@dataclass
+class CheckDeadlinesUseCase:
+    """Use case for checking and notifying about approaching task deadlines."""
+
+    task_repository: TaskRepository
+    notification_service: NotificationPort
+    warning_threshold: timedelta = field(default=timedelta(days=1))
+
+    def execute(self) -> Result:
+        """Check all tasks and notify about approaching deadlines."""
+        try:
+            tasks = self.task_repository.get_active_tasks()
+            notifications_sent = 0
+
+            for task in tasks:
+                if task.due_date and task.due_date.is_approaching(
+                    self.warning_threshold
+                ):
+                    remaining_days = int(
+                        task.due_date.time_remaining().total_seconds()
+                        / (24 * 3600)
+                    )
+                    self.notification_service.notify_task_deadline_approaching(
+                        task.id, remaining_days
+                    )
+                    notifications_sent += 1
+
+            return Result.success({"notifications_sent": notifications_sent})
+
+        except TaskNotFoundError as e:
+            return Result.failure(Error.not_found("Task", str(e)))
+        except ValidationError as e:
+            return Result.failure(Error.validation_error(str(e)))
+        except BusinessRuleViolation as e:
+            return Result.failure(Error.business_rule_violation(str(e)))
+
+<file_end>todo_app/application/use_cases/deadline_use_cases.py</file_end>
+
+<file_start>todo_app/application/use_cases/project_use_cases.py</file_start>
+"""
+This module contains use cases for project operations.
+"""
+
+from copy import deepcopy
+from dataclasses import dataclass
+
+from todo_app.application.common.result import Result, Error
+from todo_app.application.dtos.project_dtos import (
+    CreateProjectRequest,
+    ProjectResponse,
+    CompleteProjectRequest,
+    CompleteProjectResponse,
+)
+from todo_app.application.ports.notifications import (
+    NotificationPort,
+)
+from todo_app.application.repositories.project_repository import (
+    ProjectRepository,
+)
+from todo_app.application.repositories.task_repository import (
+    TaskRepository,
+)
+from todo_app.domain.entities.project import Project
+from todo_app.domain.exceptions import (
+    ValidationError,
+    BusinessRuleViolation,
+    ProjectNotFoundError,
+)
+
+
+@dataclass
+class CreateProjectUseCase:
+    """Use case for creating a new project."""
+
+    project_repository: ProjectRepository
+
+    def execute(self, request: CreateProjectRequest) -> Result:
+        """Execute the use case."""
+        try:
+            params = request.to_execution_params()
+
+            project = Project(
+                name=params["name"], description=params["description"]
+            )
+
+            self.project_repository.save(project)
+
+            return Result.success(ProjectResponse.from_entity(project))
+
+        except ValidationError as e:
+            return Result.failure(Error.validation_error(str(e)))
+        except BusinessRuleViolation as e:
+            return Result.failure(Error.business_rule_violation(str(e)))
+
+
+@dataclass
+class CompleteProjectUseCase:
+    """Use case for marking a project as complete."""
+
+    project_repository: ProjectRepository
+    task_repository: TaskRepository
+    notification_service: NotificationPort
+
+    def execute(self, request: CompleteProjectRequest) -> Result:
+        """Execute the use case."""
+        try:
+            params = request.to_execution_params()
+            project = self.project_repository.get(params["project_id"])
+
+            # Take snapshots of initial state
+            project_snapshot = deepcopy(project)
+            task_snapshots = {
+                task.id: deepcopy(task) for task in project.incomplete_tasks
+            }
+
+            try:
+                # Complete all outstanding tasks
+                for task in project.incomplete_tasks:
+                    task.complete()
+                    self.task_repository.save(task)
+
+                project.mark_completed(
+                    notes=params["completion_notes"],
+                )
+
+                self.project_repository.save(project)
+                for task in project_snapshot.incomplete_tasks:
+                    self.notification_service.notify_task_completed(task.id)
+                return Result.success(
+                    CompleteProjectResponse.from_entity(project)
+                )
+
+            except (ValidationError, BusinessRuleViolation) as e:
+                # Restore project state
+                for task_id, task_snapshot in task_snapshots.items():
+                    self.task_repository.save(task_snapshot)
+                self.project_repository.save(project_snapshot)
+                raise  # Re-raise the exception to be caught by outer try block
+
+        except ProjectNotFoundError:
+            return Result.failure(
+                Error.not_found("Project", str(params["project_id"]))
+            )
+        except ValidationError as e:
+            return Result.failure(Error.validation_error(str(e)))
+        except BusinessRuleViolation as e:
+            return Result.failure(Error.business_rule_violation(str(e)))
+
+<file_end>todo_app/application/use_cases/project_use_cases.py</file_end>
+
+<file_start>todo_app/application/ports/notifications.py</file_start>
+# todo_app/application/ports/notifications.py
+"""
+This module defines the notification interface (port) for external notification services.
+"""
+
+from abc import ABC, abstractmethod
+from uuid import UUID
+
+
+class NotificationPort(ABC):
+    """Interface for sending notifications about task events."""
+
+    @abstractmethod
+    def notify_task_completed(self, task_id: UUID) -> None:
+        """Notify when a task is completed."""
+        pass
+
+    @abstractmethod
+    def notify_task_high_priority(self, task_id: UUID) -> None:
+        """Notify when a task is set to high priority."""
+        pass
+
+    @abstractmethod
+    def notify_task_deadline_approaching(
+        self, task_id: UUID, days_remaining: int
+    ) -> None:
+        """Notify when a task's deadline is approaching."""
+        pass
+
+<file_end>todo_app/application/ports/notifications.py</file_end>
+
+<file_start>todo_app/infrastructure/config/container.py</file_start>
+from dataclasses import dataclass
+
+
+from todo_app.application.ports.notifications import NotificationPort
+from todo_app.application.repositories.project_repository import ProjectRepository
+from todo_app.application.repositories.task_repository import TaskRepository
+from todo_app.interfaces.presenters.base import ProjectPresenter, TaskPresenter
+from todo_app.application.use_cases.project_use_cases import CompleteProjectUseCase, CreateProjectUseCase
+from todo_app.application.use_cases.task_use_cases import CompleteTaskUseCase, CreateTaskUseCase
+from todo_app.interfaces.controllers.project_controller import ProjectController
+from todo_app.interfaces.controllers.task_controller import TaskController 
+
+@dataclass
+class Application:
+    """
+    Application container that configures and wires together all components.
+    This acts as our composition root.
+    """
+    task_repository: TaskRepository
+    project_repository: ProjectRepository
+    notification_service: NotificationPort
+    task_presenter: TaskPresenter
+    project_presenter: ProjectPresenter
+
+    def __post_init__(self):
+        # Wire up use cases
+        self.create_task_use_case = CreateTaskUseCase(
+            self.task_repository, 
+            self.project_repository
+        )
+        self.complete_task_use_case = CompleteTaskUseCase(
+            self.task_repository, 
+            self.notification_service
+        )
+        self.create_project_use_case = CreateProjectUseCase(
+            self.project_repository
+        )
+        self.complete_project_use_case = CompleteProjectUseCase(
+            self.project_repository,
+            self.task_repository,
+            self.notification_service,
+        )
+        
+        # Wire up controllers with their dependencies
+        self.task_controller = TaskController(
+            create_use_case=self.create_task_use_case,
+            complete_use_case=self.complete_task_use_case,
+            presenter=self.task_presenter
+        )
+        self.project_controller = ProjectController(
+            create_use_case=self.create_project_use_case,
+            complete_use_case=self.complete_project_use_case,
+            presenter=self.project_presenter
+        )
+    
+<file_end>todo_app/infrastructure/config/container.py</file_end>
+
+<file_start>todo_app/infrastructure/web/api_app.py</file_start>
+# todo_app/infrastructure/web/web_app.py
+"""
+FastAPI web interface implementation demonstrating Clean Architecture adaptability.
+
+This module shows how Clean Architecture enables multiple interfaces to the same
+core business logic. It demonstrates:
+1. How business logic remains unchanged across interfaces
+2. How Clean Architecture supports different external protocols
+3. How the Frameworks & Drivers layer adapts between protocols and core logic
+
+While the CLI interface uses command-line arguments, this module shows how the
+same business logic can be exposed through HTTP endpoints, demonstrating the
+flexibility Clean Architecture provides.
+"""
+
+from todo_app.application.dtos.task_dtos import CreateTaskRequest
+from fastapi import FastAPI, HTTPException
+from todo_app.infrastructure.config.container import Application, create_application
+
+app = FastAPI(
+    title="Todo API",
+    description="REST API for todo management demonstrating Clean Architecture",
+)
+application = create_application()
+
+@app.post("/tasks")
+async def create_task(task: CreateTaskRequest):
+    """
+    Create a new task through the REST interface.
+    
+    This endpoint demonstrates Clean Architecture's interface flexibility:
+    1. HTTP request is converted to internal format
+    2. Same business logic is used as CLI interface
+    3. Results are converted to HTTP responses
+    
+    Args:
+        task: Task creation request data
+        
+    Returns:
+        Created task details
+        
+    Raises:
+        HTTPException: If task creation fails
+    """
+    result = application.task_controller.handle_create(
+        title=task.title,
+        description=task.description
+    )
+    if not result.success:
+        raise HTTPException(status_code=400, detail=result.message)
+    return result.value
+<file_end>todo_app/infrastructure/web/api_app.py</file_end>
+
+<file_start>todo_app/infrastructure/cli/click_cli_app.py</file_start>
+import click
+from todo_app.interfaces.view_models.base import OperationResult
+from todo_app.interfaces.view_models.project_vm import ProjectViewModel
+from todo_app.infrastructure.config.container import Application
+
+
+class ClickCli:
+    def __init__(self, app: Application):
+        self.app = app
+        self.cli = click.Group()
+        
+        # Create command instances bound to self
+        create_task_cmd = click.Command(
+            'create-task',
+            callback=self.create_task,
+            params=[
+                click.Option(["-t", "--title"], required=True, help="Task title"),
+                click.Option(["-d", "--description"], default="", help="Task description")
+            ]
+        )
+        
+        create_project_cmd = click.Command(
+            'create-project',
+            callback=self.create_project,
+            params=[
+                click.Option(["-t", "--title"], required=True, help="Project title"),
+                click.Option(["-d", "--description"], default="", help="Project description")
+            ]
+        )
+        
+        complete_project_cmd = click.Command(
+            'complete-project',
+            callback=self.complete_project,
+            params=[
+                click.Option(["--id"], required=True, help="Project ID"),
+                click.Option(["-n", "--completion-notes"], default="", help="Completion notes")
+            ]
+        )
+
+        # Add commands to the group
+        self.cli.add_command(create_task_cmd)
+        self.cli.add_command(create_project_cmd)
+        self.cli.add_command(complete_project_cmd)
+
+    def run(self) -> int:
+        """Entry point for running the Click CLI application"""
+        try:
+            return self.cli.main(standalone_mode=False)
+        except Exception as e:
+            click.secho(str(e), fg='red', err=True)
+            return 1
+
+    def create_task(self, title: str, description: str):
+        result = self.app.task_controller.handle_create(title, description)
+        
+        if result.is_success:
+            task = result.success
+            click.echo(f"{task.status_display} [{task.priority_display}] {task.title}")
+            return 0
+            
+        click.secho(result.error.message, fg='red', err=True)
+        return 1
+
+    def create_project(self, title: str, description: str):
+        result: OperationResult[ProjectViewModel] = self.app.project_controller.handle_create(title, description)
+        
+        if result.is_success:
+            project_vm = result.success
+            click.echo(f"Created project: {project_vm.name}")
+            return 0
+        click.secho(result.error.message, fg='red', err=True)
+        return 1
+
+    def complete_project(self, id: str, completion_notes: str):
+        result = self.app.project_controller.handle_complete(id, completion_notes)
+        if result.is_success:
+            project_vm = result.success
+            click.echo(f"Completed project: {project_vm.name}")
+            return 0
+        click.secho(result.error.message, fg='red', err=True)
+        return 1
+
+<file_end>todo_app/infrastructure/cli/click_cli_app.py</file_end>
+
+<file_start>todo_app/infrastructure/cli/simple_cli_app.py</file_start>
+from todo_app.interfaces.view_models.base import OperationResult
+from todo_app.interfaces.view_models.project_vm import ProjectViewModel
+from todo_app.infrastructure.config.container import Application
+
+
+class SimpleCli:
+    def __init__(self, app: Application):
+        self.app = app
+        self.command_aliases = {
+            't': 'title',
+            'd': 'description',
+            'n': 'completion_notes',
+        }
+
+    def _normalize_kwargs(self, kwargs: dict) -> dict:
+        """Convert short aliases to full parameter names"""
+        normalized = {}
+        for key, value in kwargs.items():
+            # Strip leading dashes and convert to standard format
+            clean_key = key.lstrip('-')
+            # Use full name if it's an alias, otherwise use the original
+            normalized[self.command_aliases.get(clean_key, clean_key)] = value
+        return normalized
+
+    def run(self, command: str, **kwargs) -> int:
+        normalized_kwargs = self._normalize_kwargs(kwargs)
+        
+        command_handlers = {
+            'create-task': self._handle_create_task,
+            'create-project': self._handle_create_project,
+            'complete-project': self._handle_complete_project,
+        }
+        
+        handler = command_handlers.get(command)
+        if not handler:
+            print(f"Unknown command: {command}")
+            return 1
+            
+        return handler(**normalized_kwargs)
+
+    def _handle_create_task(self, title: str = "", description: str = "") -> int:
+        result = self.app.task_controller.handle_create(title, description)
+        
+        if result.is_success:
+            task = result.success
+            print(f"{task.status_display} [{task.priority_display}] {task.title}")
+            return 0
+        
+        print(result.error.message)
+        return 1
+
+    def _handle_create_project(self, title: str = "", description: str = "") -> int:
+        result: OperationResult[ProjectViewModel] = self.app.project_controller.handle_create(title, description)
+        
+        if result.is_success:
+            project_vm = result.success
+            print(f"Created project: {project_vm.name}")
+            return 0
+        
+        print(result.error.message)
+        return 1
+
+    def _handle_complete_project(self, id: str = "", completion_notes: str = "") -> int:
+        result: OperationResult[ProjectViewModel] = self.app.project_controller.handle_complete(id, completion_notes)
+        
+        if result.is_success:
+            project_vm = result.success
+            print(f"Completed project: {project_vm.name}")
+            return 0
+        
+        print(result.error.message)
+        return 1
+
+<file_end>todo_app/infrastructure/cli/simple_cli_app.py</file_end>
+
+<file_start>todo_app/infrastructure/persistence/memory.py</file_start>
+"""
+In-memory repository implementations for demonstrating Interface Adapters patterns.
+
+This is a preimptive view into the Framworks and Drivers layer.
+
+This module provides basic in-memory implementations of repository interfaces to
+demonstrate Clean Architecture principles without the complexity of a real database.
+It shows:
+- How repository interfaces from the Application layer are implemented
+- How persistence concerns are kept separate from business logic
+- Basic error handling at the storage boundary
+
+These implementations will be replaced by actual database repositories in Chapter 7,
+demonstrating how Clean Architecture enables swapping storage mechanisms while
+maintaining core functionality.
+"""
+
+from typing import Dict, Sequence
+from uuid import UUID
+
+from todo_app.domain.entities.task import Task
+from todo_app.domain.entities.project import Project
+from todo_app.domain.exceptions import TaskNotFoundError, ProjectNotFoundError
+from todo_app.domain.value_objects import TaskStatus
+from todo_app.application.repositories.task_repository import TaskRepository
+from todo_app.application.repositories.project_repository import ProjectRepository
+
+
+class InMemoryTaskRepository(TaskRepository):
+    """
+    In-memory implementation of TaskRepository for teaching Interface Adapters concepts.
+    
+    This class demonstrates how storage gateways work in Clean Architecture:
+    - Implements interface defined by Application layer
+    - Encapsulates storage details (in-memory dict in this case)
+    - Maintains separation between storage and business logic
+    - Handles storage-related errors
+    
+    While simplified, this implementation establishes patterns that will be used
+    in actual database implementations.
+    """
+    
+    def __init__(self):
+        self._tasks: Dict[UUID, Task] = {}
+
+    def get(self, task_id: UUID) -> Task:
+        """Retrieve a task by ID or raise TaskNotFoundError."""
+        if task := self._tasks.get(task_id):
+            return task
+        raise TaskNotFoundError(task_id)
+
+    def save(self, task: Task) -> None:
+        """Save or update a task."""
+        self._tasks[task.id] = task
+
+    def delete(self, task_id: UUID) -> None:
+        """Delete a task if it exists."""
+        self._tasks.pop(task_id, None)
+
+    def find_by_project(self, project_id: UUID) -> Sequence[Task]:
+        """Find all tasks belonging to a project."""
+        return [
+            task for task in self._tasks.values()
+            if task.project_id == project_id
+        ]
+
+    def get_active_tasks(self) -> Sequence[Task]:
+        """Get all non-completed tasks."""
+        return [
+            task for task in self._tasks.values()
+            if task.status != TaskStatus.DONE
+        ]
+
+
+class InMemoryProjectRepository(ProjectRepository):
+    """
+    In-memory implementation of ProjectRepository for teaching Interface Adapters concepts.
+    
+    Similar to InMemoryTaskRepository, this class demonstrates gateway implementation
+    patterns that will be used with actual databases in later chapters.
+    """
+    
+    def __init__(self):
+        self._projects: Dict[UUID, Project] = {}
+
+    def get(self, project_id: UUID) -> Project:
+        """Retrieve a project by ID or raise ProjectNotFoundError."""
+        if project := self._projects.get(project_id):
+            return project
+        raise ProjectNotFoundError(project_id)
+
+    def save(self, project: Project) -> None:
+        """Save or update a project."""
+        self._projects[project.id] = project
+
+    def delete(self, project_id: UUID) -> None:
+        """Delete a project if it exists."""
+        self._projects.pop(project_id, None)
+<file_end>todo_app/infrastructure/persistence/memory.py</file_end>
+
+<file_start>todo_app/infrastructure/notifications/recorder.py</file_start>
+"""
+Simple notification implementation for demonstrating Interface Adapters patterns.
+
+This is a preimptive view into the Framworks and Drivers layer.
+
+This module provides a basic implementation of the notification interface to
+demonstrate Clean Architecture principles without the complexity of real
+notification services. It shows:
+- How notification interfaces from the Application layer are implemented
+- How notification concerns are kept separate from business logic
+- Basic handling of notification events
+
+This implementation will be replaced by actual notification services in Chapter 7,
+demonstrating how Clean Architecture enables swapping notification mechanisms
+while maintaining core functionality.
+"""
+
+from dataclasses import dataclass
+from uuid import UUID
+from todo_app.application.ports.notifications import NotificationPort
+
+@dataclass
+class NotificationRecorder(NotificationPort):
+    """
+    Simple notification implementation for teaching Interface Adapters concepts.
+    
+    This class demonstrates how notification gateways work in Clean Architecture:
+    - Implements interface defined by Application layer
+    - Encapsulates notification details (simple printing in this case)
+    - Maintains separation between notification and business logic
+    
+    While simplified, this implementation establishes patterns that will be used
+    in actual notification service implementations.
+    """
+    
+    def __init__(self) -> None:
+        self.completed_tasks = []
+        self.high_priority_tasks = []
+        self.deadline_warnings = []
+
+    def notify_task_completed(self, task_id: UUID) -> None:
+        """Record a task completion notification."""
+        message = f"Task {task_id} has been completed"
+        print(f"NOTIFICATION: {message}")
+        self.completed_tasks.append(task_id)
+
+    def notify_task_high_priority(self, task_id: UUID) -> None:
+        """Record a high priority task notification."""
+        message = f"Task {task_id} has been set to high priority"
+        print(f"NOTIFICATION: {message}")
+        self.high_priority_tasks.append(task_id)
+
+    def notify_task_deadline_approaching(
+        self, task_id: UUID, days_remaining: int
+    ) -> None:
+        """Record a deadline approaching notification."""
+        message = f"Task {task_id} deadline approaching in {days_remaining} days"
+        print(f"NOTIFICATION: {message}")
+        self.deadline_warnings.append((task_id, days_remaining))
+<file_end>todo_app/infrastructure/notifications/recorder.py</file_end>
+
+<file_start>todo_app/domain/value_objects.py</file_start>
+"""
+This is a judgement call as to placing all these objects in one
+file or in their own files.  It's really the developer's preference
+"""
+
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from enum import Enum
+
+
+class TaskStatus(Enum):
+    TODO = "TODO"
+    IN_PROGRESS = "IN_PROGRESS"
+    DONE = "DONE"
+
+
+class ProjectStatus(Enum):
+    ACTIVE = "ACTIVE"
+    COMPLETED = "COMPLETED"
+
+
+class Priority(Enum):
+    LOW = 1
+    MEDIUM = 2
+    HIGH = 3
+
+
+# frozen=True makes this immutable as it should be for a Value Object
+@dataclass(frozen=True)
+class Deadline:
+    due_date: datetime
+
+    def __post_init__(self):
+        if self.due_date < datetime.now():
+            raise ValueError("Deadline cannot be in the past")
+
+    def is_overdue(self) -> bool:
+        return datetime.now() > self.due_date
+
+    def time_remaining(self) -> timedelta:
+        return max(timedelta(0), self.due_date - datetime.now())
+
+    def is_approaching(
+        self, warning_threshold: timedelta = timedelta(days=1)
+    ) -> bool:
+        return timedelta(0) < self.time_remaining() <= warning_threshold
+
+<file_end>todo_app/domain/value_objects.py</file_end>
+
+<file_start>todo_app/domain/exceptions.py</file_start>
+"""
+This module contains domain-specific exceptions for the todo application.
+These exceptions represent error conditions specific to the domain model.
+"""
+
+from uuid import UUID
+
+
+class DomainError(Exception):
+    """Base class for domain-specific errors."""
+
+    pass
+
+
+class TaskNotFoundError(DomainError):
+    """Raised when attempting to access a task that doesn't exist."""
+
+    def __init__(self, task_id: UUID) -> None:
+        self.task_id = task_id
+        super().__init__(f"Task with id {task_id} not found")
+
+
+class ProjectNotFoundError(DomainError):
+    """Raised when attempting to access a project that doesn't exist."""
+
+    def __init__(self, project_id: UUID) -> None:
+        self.project_id = project_id
+        super().__init__(f"Project with id {project_id} not found")
+
+
+class ValidationError(DomainError):
+    """Raised when domain validation rules are violated."""
+
+    pass
+
+
+class BusinessRuleViolation(DomainError):
+    """Raised when a business rule is violated."""
+
+    pass
+
+<file_end>todo_app/domain/exceptions.py</file_end>
+
+<file_start>todo_app/domain/services/task_priority_calculator.py</file_start>
+from datetime import timedelta
+
+from todo_app.domain.entities.task import Task
+from todo_app.domain.value_objects import Priority
+
+
+class TaskPriorityCalculator:
+    @staticmethod
+    def calculate_priority(task: Task) -> Priority:
+        """
+        Consider Task Priority based on impending due date
+
+        """
+        # No adjustment needed if no due date
+        if task.due_date is None:
+            return task.priority
+        # High if overdue or due within 12 hours
+        if task.is_overdue() or task.due_date.time_remaining() <= timedelta(
+            hours=12
+        ):
+            return Priority.HIGH
+        # Med if task due within 2 days
+        elif task.due_date and task.due_date.time_remaining() <= timedelta(
+            days=2
+        ):
+            return Priority.MEDIUM
+        else:
+            return Priority.LOW
+
+<file_end>todo_app/domain/services/task_priority_calculator.py</file_end>
+
+<file_start>todo_app/domain/entities/task.py</file_start>
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Optional
+from uuid import UUID
+
+from todo_app.domain.entities.entity import Entity
+from todo_app.domain.value_objects import (
+    Deadline,
+    Priority,
+    TaskStatus,
+)
+
+
+@dataclass
+class Task(Entity):
+    """A task that needs to be completed."""
+
+    title: str
+    description: str
+    due_date: Optional[Deadline] = None
+    priority: Priority = Priority.MEDIUM
+    status: TaskStatus = field(default=TaskStatus.TODO, init=False)
+    completed_at: Optional[datetime] = field(default=None, init=False)
+    completion_notes: Optional[str] = field(default=None, init=False)
+    project_id: Optional[UUID] = field(default=None, init=False)
+
+    def start(self) -> None:
+        """Mark the task as in progress."""
+        if self.status != TaskStatus.TODO:
+            raise ValueError("Only tasks with 'TODO' status can be started")
+        self.status = TaskStatus.IN_PROGRESS
+
+    def complete(self, notes: Optional[str] = None) -> None:
+        """
+        Mark the task as complete.
+
+        Args:
+            notes: Optional completion notes
+
+        Raises:
+            ValueError: If task is already completed
+        """
+        if self.status == TaskStatus.DONE:
+            raise ValueError("Task is already completed")
+        self.status = TaskStatus.DONE
+        self.completed_at = datetime.now()
+        self.completion_notes = notes
+
+    def is_overdue(self) -> bool:
+        """Check if the task is overdue."""
+        return self.due_date is not None and self.due_date.is_overdue()
+
+<file_end>todo_app/domain/entities/task.py</file_end>
+
+<file_start>todo_app/domain/entities/entity.py</file_start>
+from dataclasses import dataclass, field
+from uuid import UUID, uuid4
+
+
+@dataclass
+class Entity:
+    # Automatically generates a unique UUID for the 'id' field;
+    #   excluded from the __init__ method
+    id: UUID = field(default_factory=uuid4, init=False)
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, type(self)):
+            return NotImplemented
+        return self.id == other.id
+
+    def __hash__(self) -> int:
+        return hash(self.id)
+
+<file_end>todo_app/domain/entities/entity.py</file_end>
+
+<file_start>todo_app/domain/entities/project.py</file_start>
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Optional
+from uuid import UUID
+
+from todo_app.domain.entities.entity import Entity
+from todo_app.domain.entities.task import Task
+from todo_app.domain.value_objects import (
+    TaskStatus,
+    ProjectStatus,
+)
+
+
+@dataclass
+class Project(Entity):
+    """A project containing multiple tasks."""
+
+    name: str
+    description: str = ""
+    status: ProjectStatus = field(default=ProjectStatus.ACTIVE, init=False)
+    completed_at: Optional[datetime] = field(default=None, init=False)
+    completion_notes: Optional[str] = field(default=None, init=False)
+    _tasks: dict[UUID, Task] = field(default_factory=dict, init=False)
+
+    def add_task(self, task: Task) -> None:
+        """Add a task to the project."""
+        if self.status == ProjectStatus.COMPLETED:
+            raise ValueError("Cannot add tasks to a completed project")
+        self._tasks[task.id] = task
+        task.project_id = self.id
+
+    def remove_task(self, task_id: UUID) -> None:
+        """Remove a task from the project."""
+        if task := self._tasks.pop(task_id, None):
+            task.project_id = None
+
+    def get_task(self, task_id: UUID) -> Optional[Task]:
+        """Get a task by its ID."""
+        return self._tasks.get(task_id)
+
+    @property
+    def tasks(self) -> list[Task]:
+        """Get all tasks in the project."""
+        return list(self._tasks.values())
+
+    @property
+    def incomplete_tasks(self) -> list[Task]:
+        """Get all incomplete tasks in the project."""
+        return [task for task in self.tasks if task.status != TaskStatus.DONE]
+
+    def mark_completed(self, notes: Optional[str] = None) -> None:
+        """
+        Mark the project as completed.
+
+        Args:
+            notes: Optional completion notes
+        """
+        self.status = ProjectStatus.COMPLETED
+        self.completed_at = datetime.now()
+        self.completion_notes = notes
+
+<file_end>todo_app/domain/entities/project.py</file_end>
+
+<file_start>todo_app/interfaces/view_models/task_vm.py</file_start>
+from dataclasses import dataclass
+from typing import Optional
+
+
+@dataclass(frozen=True)
+class TaskViewModel:
+    """View-specific representation of a task."""
+    id: str
+    title: str
+    description: str
+    status_display: str  # Human readable status
+    priority_display: str  # Human readable priority
+    due_date_display: Optional[str]  # Formatted date string
+    project_display: Optional[str]  # Project name if available
+    completion_info: Optional[str]  # Formatted completion details
+
+
+<file_end>todo_app/interfaces/view_models/task_vm.py</file_end>
+
+<file_start>todo_app/interfaces/view_models/project_vm.py</file_start>
+from dataclasses import dataclass
+from typing import Optional
+
+
+@dataclass(frozen=True)
+class ProjectViewModel:
+    """View-specific representation of a project."""
+    id: str
+    name: str
+    description: str
+    status_display: str
+    task_count: int
+    completed_task_count: int  
+    completion_info: Optional[str]
+
+@dataclass(frozen=True)
+class ProjectCompletionViewModel:
+    """View-specific representation of a project completion."""
+    project_id: str
+    completion_notes: Optional[str]
+
+<file_end>todo_app/interfaces/view_models/project_vm.py</file_end>
+
+<file_start>todo_app/interfaces/view_models/base.py</file_start>
+from typing import Generic, TypeVar, Optional
+from dataclasses import dataclass
+
+T = TypeVar("T")
+
+
+@dataclass(frozen=True)
+class ErrorViewModel:
+    """Represents an error with an optional error code.
+
+    Attributes:
+        message: A human-readable error message
+        code: An optional error code for programmatic error handling
+    """
+
+    message: str
+    code: Optional[str] = None
+
+
+@dataclass
+class OperationResult(Generic[T]):
+    """Represents the result of an operation that can either succeed with a value or fail with an error.
+
+    This class implements the Either pattern, where a result can only be either a success
+    or a failure, but never both or neither. This helps with explicit error handling and
+    avoiding None checks.  It also enables type checking with Mypy and other static type checkers.
+
+    Type Parameters:
+        T: The type of the success value
+
+    Attributes:
+        _success: The success value if the operation succeeded
+        _error: The error details if the operation failed
+    """
+
+    _success: Optional[T] = None
+    _error: Optional[ErrorViewModel] = None
+
+    def __init__(self, success: Optional[T] = None, error: Optional[ErrorViewModel] = None):
+        """Initialize the result with either a success value or an error.
+
+        Args:
+            success: The success value if the operation succeeded
+            error: The error details if the operation failed
+
+        Raises:
+            ValueError: If neither or both success and error are provided
+        """
+        if (success is None and error is None) or (success is not None and error is not None):
+            raise ValueError("Either success or error must be provided, but not both")
+        self._success = success
+        self._error = error
+
+    @property
+    def is_success(self) -> bool:
+        """Indicates whether the operation was successful."""
+        return self._success is not None
+
+    @property
+    def success(self) -> T:
+        """Returns the success value.
+
+        Raises:
+            ValueError: If accessing success value on an error result
+        """
+        if self._success is None:
+            raise ValueError("Cannot access success value on error result")
+        return self._success
+
+    @property
+    def error(self) -> ErrorViewModel:
+        """Returns the error details.
+
+        Raises:
+            ValueError: If accessing error value on a success result
+        """
+        if self._error is None:
+            raise ValueError("Cannot access error value on success result")
+        return self._error
+
+    @classmethod
+    def succeed(cls, value: T) -> "OperationResult[T]":
+        """Creates a successful result with the given value.
+
+        Args:
+            value: The success value
+
+        Returns:
+            A new OperationResult instance representing success
+        """
+        return cls(success=value)
+
+    @classmethod
+    def fail(cls, message: str, code: Optional[str] = None) -> "OperationResult[T]":
+        """Creates a failed result with the given error message and optional code.
+
+        Args:
+            message: The error message
+            code: An optional error code
+
+        Returns:
+            A new OperationResult instance representing failure
+        """
+        return cls(error=ErrorViewModel(message, code))
+
+<file_end>todo_app/interfaces/view_models/base.py</file_end>
+
+<file_start>todo_app/interfaces/presenters/cli.py</file_start>
+from datetime import datetime, timezone
+from typing import Optional
+from todo_app.domain.value_objects import Priority, TaskStatus
+from todo_app.interfaces.view_models.base import ErrorViewModel
+from todo_app.application.dtos.project_dtos import CompleteProjectResponse, ProjectResponse
+from todo_app.interfaces.view_models.project_vm import ProjectCompletionViewModel, ProjectViewModel
+from todo_app.application.dtos.task_dtos import TaskResponse
+from todo_app.interfaces.presenters.base import ProjectPresenter, TaskPresenter
+from todo_app.interfaces.view_models.task_vm import TaskViewModel
+
+
+class CliTaskPresenter(TaskPresenter):
+    """CLI-specific task presenter."""
+
+    def present_task(self, task_response: TaskResponse) -> TaskViewModel:
+        """Format task for CLI display."""
+        return TaskViewModel(
+            id=task_response.id,
+            title=task_response.title,
+            description=task_response.description,
+            status_display=f"[{task_response.status.value}]",
+            priority_display=self._format_priority(task_response.priority),
+            due_date_display=self._format_due_date(task_response.due_date),
+            project_display=(
+                f"Project: {task_response.project_id}" if task_response.project_id else ""
+            ),
+            completion_info=self._format_completion_info(
+                task_response.completion_date, task_response.completion_notes
+            ),
+        )
+
+    def _format_due_date(self, due_date: Optional[datetime]) -> str:
+        """Format due date, indicating if task is overdue."""
+        if not due_date:
+            return "No due date"
+
+        is_overdue = due_date < datetime.now(timezone.utc)
+        date_str = due_date.strftime("%Y-%m-%d")
+
+        if is_overdue:
+            return f"OVERDUE - Due: {date_str}"
+        return f"Due: {date_str}"
+
+    def _format_completion_info(
+        self, completion_date: Optional[datetime], completion_notes: Optional[str]
+    ) -> str:
+        """Format completion information including notes if present."""
+        if not completion_date:
+            return "Not completed"
+
+        base_info = f"Completed on {completion_date.strftime('%Y-%m-%d %H:%M')}"
+        if completion_notes:
+            return f"{base_info} - {completion_notes}"
+        return base_info
+
+    def present_error(self, error_msg: str, code: Optional[str] = None) -> ErrorViewModel:
+        return ErrorViewModel(message=error_msg, code=code)
+
+    def _format_priority(self, priority: Priority) -> str:
+        """Format priority for CLI display."""
+        display_map = {
+            Priority.LOW: "Minor",
+            Priority.MEDIUM: "Normal",
+            Priority.HIGH: "High",
+        }
+        return display_map[priority]
+
+
+class CliProjectPresenter(ProjectPresenter):
+
+    def present_project(self, project_response: ProjectResponse) -> ProjectViewModel:
+        completed = sum(1 for task in project_response.tasks if task.status == TaskStatus.DONE)
+
+        return ProjectViewModel(
+            id=str(project_response.id),
+            name=project_response.name,
+            description=project_response.description,
+            status_display=f"[{project_response.status.name}]",
+            task_count=len(project_response.tasks),
+            completed_task_count=completed,
+            completion_info=self._format_completion_info(project_response.completion_date),
+        )
+
+    def present_completion(
+        self, completion_response: CompleteProjectResponse
+    ) -> ProjectCompletionViewModel:
+        """Format project completion for CLI display."""
+        return ProjectCompletionViewModel(
+            project_id=str(completion_response.id),
+            completion_notes=completion_response.completion_notes,
+        )
+
+    def present_error(self, error_msg: str, code: Optional[str] = None) -> ErrorViewModel:
+        return ErrorViewModel(message=error_msg, code=code)
+
+    def _format_completion_info(self, completion_date: Optional[datetime]) -> str:
+        """Format completion information for CLI display."""
+        if completion_date:
+            return f"Completed on {completion_date.strftime('%Y-%m-%d %H:%M')}"
+        return "Not completed"
+
+    def _format_task_summary(self, vm: ProjectViewModel) -> str:
+        """
+        CLI-specific formatting of task counts.
+        This would be used by CLI display code when it needs a formatted string.
+        """
+        return f"{vm.task_count} tasks ({vm.completed_task_count} completed)"
+
+<file_end>todo_app/interfaces/presenters/cli.py</file_end>
+
+<file_start>todo_app/interfaces/presenters/base.py</file_start>
+from abc import ABC, abstractmethod
+from typing import Optional
+
+from todo_app.interfaces.view_models.base import ErrorViewModel
+from todo_app.application.dtos.project_dtos import CompleteProjectResponse, ProjectResponse
+from todo_app.application.dtos.task_dtos import TaskResponse
+from todo_app.interfaces.view_models.project_vm import ProjectCompletionViewModel, ProjectViewModel
+from todo_app.interfaces.view_models.task_vm import TaskViewModel
+
+class TaskPresenter(ABC):
+    """Abstract base presenter for task-related output."""
+    
+    @abstractmethod
+    def present_task(self, task_response: TaskResponse) -> TaskViewModel:
+        """Convert task response to view model."""
+        pass
+        
+    @abstractmethod
+    def present_error(self, error_msg: str, code: Optional[str] = None) -> ErrorViewModel:
+        """Format error message for display."""
+        pass
+
+class ProjectPresenter(ABC):
+    """Abstract base presenter for project-related output."""
+    
+    @abstractmethod
+    def present_project(self, project_response: ProjectResponse) -> ProjectViewModel:
+        """Convert project response to view model."""
+        pass
+        
+    @abstractmethod
+    def present_completion(self, completion_response: CompleteProjectResponse) -> ProjectCompletionViewModel:
+        """Format project completion message."""
+        pass
+        
+    @abstractmethod
+    def present_error(self, error_msg: str, code: Optional[str] = None) -> ErrorViewModel:
+        """Format error message for display."""
+        pass
+<file_end>todo_app/interfaces/presenters/base.py</file_end>
+
+<file_start>todo_app/interfaces/controllers/task_controller.py</file_start>
+"""
+This module contains controllers that implement the Interface Adapters layer of Clean Architecture.
+
+Controllers are responsible for:
+1. Accepting input from external sources (CLI, web, etc.)
+2. Converting that input into the format required by use cases
+3. Executing the appropriate use case
+4. Converting the result into a view model suitable for the interface
+5. Handling and formatting any errors that occur
+
+Key Clean Architecture benefits demonstrated in these controllers:
+- Dependency Rule is followed: controllers depend inward towards use cases
+- Separation of Concerns: controllers handle routing and data conversion only
+- Independence: business logic remains isolated in use cases
+- Flexibility: new interfaces can be added without changing use cases
+"""
+
+from dataclasses import dataclass
+from typing import Optional
+
+from todo_app.interfaces.presenters.base import TaskPresenter
+from todo_app.interfaces.view_models.task_vm import TaskViewModel
+from todo_app.interfaces.view_models.base import OperationResult
+from todo_app.application.dtos.task_dtos import CompleteTaskRequest, CreateTaskRequest
+from todo_app.application.use_cases.task_use_cases import CompleteTaskUseCase, CreateTaskUseCase
+
+
+@dataclass
+class TaskController:
+    """
+    Controller for task-related operations, demonstrating Clean Architecture principles.
+
+    This controller adheres to Clean Architecture by:
+    - Depending only on abstractions (use cases and presenters)
+    - Converting external input into use case request models
+    - Ensuring business rules remain in the use cases
+    - Using presenters to format output appropriately for the interface
+
+    The clear separation of concerns allows:
+    - Easy testing through dependency injection
+    - Addition of new interfaces without changing business logic
+    - Modification of presentation logic without affecting core functionality
+
+    Attributes:
+        create_use_case: Use case for creating tasks
+        complete_use_case: Use case for completing tasks
+        presenter: Handles formatting of task data for the interface
+    """
+
+    create_use_case: CreateTaskUseCase
+    complete_use_case: CompleteTaskUseCase
+    presenter: TaskPresenter
+
+    def handle_create(self, title: str, description: str) -> OperationResult[TaskViewModel]:
+        """
+        Handle task creation requests from any interface.
+
+        This method demonstrates Clean Architecture's separation of concerns by:
+        1. Accepting primitive types as input (making it interface-agnostic)
+        2. Converting input into the use case's required format
+        3. Executing the use case without knowing its implementation details
+        4. Using a presenter to format the response appropriately
+
+        Args:
+            title: The task title
+            description: The task description
+
+        Returns:
+            OperationResult containing either:
+            - Success: TaskViewModel formatted for the interface
+            - Failure: Error information formatted for the interface
+        """
+        try:
+            # Convert primitive input to use case request model specifically designed for the
+            # Interface->Application boundary crossing
+            # It contains validation specific to application needs
+            # Ensures data entering the application layer is properly formatted and validated
+            request = CreateTaskRequest(title=title, description=description)
+
+            # Execute use case and get domain-oriented result
+            result = self.create_use_case.execute(request)
+
+            if result.is_success:
+                # Convert domain response to view model
+                view_model = self.presenter.present_task(result.value)
+                return OperationResult.succeed(view_model)
+
+            # Handle domain errors
+            error_vm = self.presenter.present_error(
+                result.error.message, str(result.error.code.name)
+            )
+            return OperationResult.fail(error_vm.message, error_vm.code)
+
+        except ValueError as e:
+            # Handle validation errors
+            error_vm = self.presenter.present_error(str(e), "VALIDATION_ERROR")
+            return OperationResult.fail(error_vm.message, error_vm.code)
+
+    def handle_complete(
+        self, task_id: str, notes: Optional[str] = None
+    ) -> OperationResult[TaskViewModel]:
+        """
+        Handle task completion requests from any interface.
+
+        Following Clean Architecture principles, this method:
+        1. Remains ignorant of the interface details (CLI, web, etc.)
+        2. Uses use cases for business logic
+        3. Returns interface-appropriate view models
+
+        Args:
+            task_id: The unique identifier of the task
+            notes: Optional completion notes
+
+        Returns:
+            OperationResult containing either:
+            - Success: TaskViewModel with completion information
+            - Failure: Error information formatted for the interface
+        """
+        try:
+            request = CompleteTaskRequest(task_id=task_id, completion_notes=notes)
+            result = self.complete_use_case.execute(request)
+
+            if result.is_success:
+                view_model = self.presenter.present_task(result.value)
+                return OperationResult.succeed(view_model)
+
+            error_vm = self.presenter.present_error(
+                result.error.message, str(result.error.code.name)
+            )
+            return OperationResult.fail(error_vm.message, error_vm.code)
+
+        except ValueError as e:
+            error_vm = self.presenter.present_error(str(e), "VALIDATION_ERROR")
+            return OperationResult.fail(error_vm.message, error_vm.code)
+
+<file_end>todo_app/interfaces/controllers/task_controller.py</file_end>
+
+<file_start>todo_app/interfaces/controllers/project_controller.py</file_start>
+"""
+This module contains the project controller implementing Clean Architecture's Interface Adapters layer.
+
+The project controller demonstrates:
+1. How controllers route between interfaces and use cases
+2. Clean conversion between external and internal data formats
+3. Proper error handling and formatting for interfaces
+4. Adherence to the Dependency Rule
+"""
+
+from dataclasses import dataclass
+from typing import Optional
+
+from todo_app.interfaces.presenters.base import ProjectPresenter
+from todo_app.interfaces.view_models.base import OperationResult
+from todo_app.application.dtos.project_dtos import CompleteProjectRequest, CreateProjectRequest
+from todo_app.application.use_cases.project_use_cases import (
+    CompleteProjectUseCase,
+    CreateProjectUseCase,
+)
+
+
+@dataclass
+class ProjectController:
+    """
+    Controller for project-related operations, implementing Clean Architecture patterns.
+
+    This controller demonstrates key Clean Architecture principles:
+    - Controllers exist in the Interface Adapters layer
+    - They depend inward on use cases (Dependency Rule)
+    - They handle data conversion between layers
+    - They isolate interface concerns from business logic
+
+    Benefits of this Clean Architecture implementation:
+    - Business logic remains protected in use cases
+    - New interfaces can be added without changing core logic
+    - Testing is simplified through dependency injection
+    - Presentation concerns are properly separated
+
+    Attributes:
+        create_use_case: Use case for creating projects
+        complete_use_case: Use case for completing projects
+        presenter: Handles formatting of project data for the interface
+    """
+
+    create_use_case: CreateProjectUseCase
+    complete_use_case: CompleteProjectUseCase
+    presenter: ProjectPresenter
+
+    def handle_create(self, name: str, description: str = "") -> OperationResult:
+        """
+        Handle project creation requests from any interface.
+
+        This method follows Clean Architecture by:
+        1. Accepting primitive types (making it interface-agnostic)
+        2. Converting data to use case format
+        3. Executing business logic through use cases
+        4. Converting responses to interface-appropriate format
+
+        Args:
+            name: The project name
+            description: Optional project description
+
+        Returns:
+            OperationResult containing either:
+            - Success: ProjectViewModel formatted for the interface
+            - Failure: Error information formatted for the interface
+        """
+        try:
+            request = CreateProjectRequest(name=name, description=description)
+            result = self.create_use_case.execute(request)
+
+            if result.is_success:
+                view_model = self.presenter.present_project(result.value)
+                return OperationResult.succeed(view_model)
+
+            error_vm = self.presenter.present_error(
+                result.error.message, str(result.error.code.name)
+            )
+            return OperationResult.fail(error_vm.message, error_vm.code)
+
+        except ValueError as e:
+            error_vm = self.presenter.present_error(str(e), "VALIDATION_ERROR")
+            return OperationResult.fail(error_vm.message, error_vm.code)
+
+    def handle_complete(self, project_id: str, notes: Optional[str] = None) -> OperationResult:
+        """
+        Handle project completion requests from any interface.
+
+        Demonstrates Clean Architecture benefits:
+        1. Interface agnostic - same method works for any interface
+        2. Business logic isolation in use cases
+        3. Proper error handling and formatting for interfaces
+
+        Args:
+            project_id: The unique identifier of the project
+            notes: Optional completion notes
+
+        Returns:
+            OperationResult containing either:
+            - Success: ProjectViewModel with completion information
+            - Failure: Error information formatted for the interface
+        """
+        try:
+            request = CompleteProjectRequest(project_id=project_id, completion_notes=notes)
+            result = self.complete_use_case.execute(request)
+
+            if result.is_success:
+                view_model = self.presenter.present_project(result.value)
+                return OperationResult.succeed(view_model)
+
+            error_vm = self.presenter.present_error(
+                result.error.message, str(result.error.code.name)
+            )
+            return OperationResult.fail(error_vm.message, error_vm.code)
+
+        except ValueError as e:
+            error_vm = self.presenter.present_error(str(e), "VALIDATION_ERROR")
+            return OperationResult.fail(error_vm.message, error_vm.code)
+
+<file_end>todo_app/interfaces/controllers/project_controller.py</file_end>
+
+<file_start>tests/conftest.py</file_start>
+import sys
+import os
+
+# Get the root directory of the project (where todo_app package is)
+root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../'))
+print(f"Adding {root_dir} to sys.path")
+sys.path.insert(0, root_dir)
+
+# Now todo_app can be imported as a package 
+<file_end>tests/conftest.py</file_end>
+
+<file_start>tests/application/test_dtos.py</file_start>
+# todo_app/tests/application/test_dtos.py
+"""Tests for DTO validation logic."""
+
+from datetime import datetime, timedelta
+
+import pytest
+
+from todo_app.application.dtos.project_dtos import (
+    CompleteProjectRequest,
+    CreateProjectRequest,
+)
+from todo_app.application.dtos.task_dtos import (
+    CompleteTaskRequest,
+    CreateTaskRequest,
+    SetTaskPriorityRequest,
+)
+
+
+class TestCompleteTaskRequest:
+    def test_valid_request(self):
+        """Test creating request with valid data."""
+        request = CompleteTaskRequest(
+            task_id="123e4567-e89b-12d3-a456-426614174000",
+            completion_notes="Task completed successfully",
+        )
+        assert request.task_id == "123e4567-e89b-12d3-a456-426614174000"
+        assert request.completion_notes == "Task completed successfully"
+
+    def test_empty_task_id(self):
+        """Test validation of empty task_id."""
+        with pytest.raises(ValueError, match="Task ID is required"):
+            CompleteTaskRequest(task_id="   ", completion_notes="Done")
+
+    def test_completion_notes_too_long(self):
+        """Test validation of completion notes length."""
+        with pytest.raises(
+            ValueError, match="Completion notes cannot exceed 1000 characters"
+        ):
+            CompleteTaskRequest(
+                task_id="123e4567-e89b-12d3-a456-426614174000",
+                completion_notes="x" * 1001,
+            )
+
+
+class TestCreateTaskRequest:
+    def test_valid_request(self):
+        """Test creating request with valid data."""
+        request = CreateTaskRequest(
+            title="Test Task",
+            description="Test Description",
+            due_date=(datetime.now() + timedelta(days=1)).isoformat(),
+            priority="HIGH",
+            project_id="123e4567-e89b-12d3-a456-426614174000",
+        )
+        assert request.title == "Test Task"
+        assert request.description == "Test Description"
+
+    def test_empty_title(self):
+        """Test validation of empty title."""
+        with pytest.raises(ValueError, match="Title is required"):
+            CreateTaskRequest(title="   ", description="Test")
+
+    def test_title_too_long(self):
+        """Test validation of title length."""
+        with pytest.raises(
+            ValueError, match="Title cannot exceed 200 characters"
+        ):
+            CreateTaskRequest(title="x" * 201, description="Test")
+
+    def test_description_too_long(self):
+        """Test validation of description length."""
+        with pytest.raises(
+            ValueError, match="Description cannot exceed 2000 characters"
+        ):
+            CreateTaskRequest(title="Test", description="x" * 2001)
+
+
+class TestSetTaskPriorityRequest:
+    def test_valid_request(self):
+        """Test creating request with valid data."""
+        request = SetTaskPriorityRequest(
+            task_id="123e4567-e89b-12d3-a456-426614174000", priority="HIGH"
+        )
+        assert request.task_id == "123e4567-e89b-12d3-a456-426614174000"
+        assert request.priority == "HIGH"
+
+    def test_empty_task_id(self):
+        """Test validation of empty task_id."""
+        with pytest.raises(ValueError, match="Task ID is required"):
+            SetTaskPriorityRequest(task_id="   ", priority="HIGH")
+
+    def test_invalid_priority(self):
+        """Test validation of invalid priority."""
+        with pytest.raises(ValueError, match="Priority must be one of:"):
+            SetTaskPriorityRequest(
+                task_id="123e4567-e89b-12d3-a456-426614174000",
+                priority="INVALID",
+            )
+
+    def test_empty_priority(self):
+        """Test validation of empty priority."""
+        with pytest.raises(ValueError, match="Priority must be one of:"):
+            SetTaskPriorityRequest(
+                task_id="123e4567-e89b-12d3-a456-426614174000", priority="   "
+            )
+
+
+class TestCreateProjectRequest:
+    def test_valid_request(self):
+        """Test creating request with valid data."""
+        request = CreateProjectRequest(
+            name="Test Project", description="Test Description"
+        )
+        assert request.name == "Test Project"
+        assert request.description == "Test Description"
+
+    def test_empty_name(self):
+        """Test validation of empty name."""
+        with pytest.raises(ValueError, match="Project name is required"):
+            CreateProjectRequest(name="   ", description="Test")
+
+    def test_name_too_long(self):
+        """Test validation of name length."""
+        with pytest.raises(
+            ValueError, match="Project name cannot exceed 100 characters"
+        ):
+            CreateProjectRequest(name="x" * 101, description="Test")
+
+    def test_description_too_long(self):
+        """Test validation of description length."""
+        with pytest.raises(
+            ValueError, match="Description cannot exceed 2000 characters"
+        ):
+            CreateProjectRequest(name="Test", description="x" * 2001)
+
+
+class TestCompleteProjectRequest:
+    def test_valid_request(self):
+        """Test creating request with valid data."""
+        request = CompleteProjectRequest(
+            project_id="123e4567-e89b-12d3-a456-426614174000",
+            completion_notes="Project completed successfully",
+        )
+        assert request.project_id == "123e4567-e89b-12d3-a456-426614174000"
+        assert request.completion_notes == "Project completed successfully"
+
+    def test_empty_project_id(self):
+        """Test validation of empty project_id."""
+        with pytest.raises(ValueError, match="Project ID is required"):
+            CompleteProjectRequest(project_id="   ", completion_notes="Done")
+
+    def test_completion_notes_too_long(self):
+        """Test validation of completion notes length."""
+        with pytest.raises(
+            ValueError, match="Completion notes cannot exceed 1000 characters"
+        ):
+            CompleteProjectRequest(
+                project_id="123e4567-e89b-12d3-a456-426614174000",
+                completion_notes="x" * 1001,
+            )
+
+
+def test_execution_params_conversion():
+    """Test conversion of DTOs to execution parameters."""
+    # Test CreateTaskRequest conversion
+    task_request = CreateTaskRequest(
+        title="Test Task",
+        description="Test Description",
+        due_date=(datetime.now() + timedelta(days=1)).isoformat(),
+        priority="HIGH",
+        project_id="123e4567-e89b-12d3-a456-426614174000",
+    )
+    task_params = task_request.to_execution_params()
+    assert task_params["title"] == "Test Task"
+    assert task_params["description"] == "Test Description"
+    assert "deadline" in task_params
+    assert "priority" in task_params
+    assert "project_id" in task_params
+
+    # Test CreateProjectRequest conversion
+    project_request = CreateProjectRequest(
+        name="Test Project", description="Test Description"
+    )
+    project_params = project_request.to_execution_params()
+    assert project_params["name"] == "Test Project"
+    assert project_params["description"] == "Test Description"
+
+<file_end>tests/application/test_dtos.py</file_end>
+
+<file_start>tests/application/test_project_use_cases.py</file_start>
+# todo_app/tests/application/test_project_use_cases.py
+"""Tests for project-related use cases."""
+
+from uuid import uuid4
+
+import pytest
+
+from todo_app.infrastructure.notifications.recorder import NotificationRecorder
+from todo_app.infrastructure.persistence.memory import InMemoryProjectRepository, InMemoryTaskRepository
+from todo_app.application.common.result import ErrorCode
+from todo_app.application.dtos.project_dtos import (
+    CreateProjectRequest,
+    CompleteProjectRequest,
+)
+from todo_app.application.use_cases.project_use_cases import (
+    CreateProjectUseCase,
+    CompleteProjectUseCase,
+)
+from todo_app.domain.entities.project import Project
+from todo_app.domain.entities.task import Task
+from todo_app.domain.exceptions import (
+    BusinessRuleViolation,
+    ValidationError,
+)
+from todo_app.domain.value_objects import (
+    ProjectStatus,
+    TaskStatus,
+)
+
+
+def test_create_project():
+    """Test creating a project with basic information."""
+    # Arrange
+    repo = InMemoryProjectRepository()
+    use_case = CreateProjectUseCase(repo)
+
+    request = CreateProjectRequest(
+        name="Test Project", description="Test Description"
+    )
+
+    # Act
+    result = use_case.execute(request)
+
+    # Assert
+    assert result.is_success
+    assert result.value.name == "Test Project"
+    assert result.value.description == "Test Description"
+    assert result.value.status == ProjectStatus.ACTIVE
+
+
+def test_complete_project_without_tasks():
+    """Test completing a project that has no tasks."""
+    # Arrange
+    project_repo = InMemoryProjectRepository()
+    task_repo = InMemoryTaskRepository()
+    notify_port = NotificationRecorder()
+    use_case = CompleteProjectUseCase(project_repo, task_repo, notify_port)
+
+    # Create and save a project
+    project = Project(name="Test Project")
+    project_repo.save(project)
+
+    request = CompleteProjectRequest(
+        project_id=str(project.id), completion_notes="All done!"
+    )
+
+    # Act
+    result = use_case.execute(request)
+
+    # Assert
+    assert result.is_success
+    assert result.value.status == ProjectStatus.COMPLETED
+    assert result.value.completion_notes == "All done!"
+    assert result.value.task_count == 0
+
+
+def test_complete_project_with_incomplete_tasks():
+    """Test completing a project that has incomplete tasks.  All tasks should be marked as done."""
+    # Arrange
+    project_repo = InMemoryProjectRepository()
+    task_repo = InMemoryTaskRepository()
+    notify_port = NotificationRecorder()
+    use_case = CompleteProjectUseCase(project_repo, task_repo, notify_port)
+
+    # Create project with task
+    project = Project(name="Test Project")
+    task = Task(title="Test Task", description="Test")
+    project.add_task(task)
+    project_repo.save(project)
+
+    request = CompleteProjectRequest(
+        project_id=str(project.id), completion_notes="Done!"
+    )
+
+    # Act
+    result = use_case.execute(request)
+
+    # Assert
+    assert result.is_success
+    assert task.status == TaskStatus.DONE
+
+
+def test_complete_project_with_completed_tasks():
+    """Test completing a project where all tasks are done."""
+    # Arrange
+    project_repo = InMemoryProjectRepository()
+    task_repo = InMemoryTaskRepository()
+    notify_port = NotificationRecorder()
+    use_case = CompleteProjectUseCase(project_repo, task_repo, notify_port)
+
+    # Create project with completed task
+    project = Project(name="Test Project")
+    task = Task(title="Test Task", description="Test")
+    task.complete()  # Complete the task
+    project.add_task(task)
+    project_repo.save(project)
+
+    request = CompleteProjectRequest(
+        project_id=str(project.id), completion_notes="All done!"
+    )
+
+    # Act
+    result = use_case.execute(request)
+
+    # Assert
+    assert result.is_success
+    assert result.value.status == ProjectStatus.COMPLETED
+    assert result.value.task_count == 1
+
+
+def test_complete_nonexistent_project():
+    """Test completing a project that doesn't exist."""
+    # Arrange
+    project_repo = InMemoryProjectRepository()
+    task_repo = InMemoryTaskRepository()
+    notify_port = NotificationRecorder()
+    use_case = CompleteProjectUseCase(project_repo, task_repo, notify_port)
+
+    request = CompleteProjectRequest(
+        project_id=str(uuid4()), completion_notes="Done!"
+    )
+
+    # Act
+    result = use_case.execute(request)
+
+    # Assert
+    assert not result.is_success
+    assert result.error.code.value == "NOT_FOUND"
+
+
+def test_create_project_handles_validation_error():
+    """Test handling of ValidationError during project creation."""
+
+    class ValidationErrorProjectRepository(InMemoryProjectRepository):
+        def save(self, project):
+            raise ValidationError("Invalid project data")
+
+    repo = ValidationErrorProjectRepository()
+    use_case = CreateProjectUseCase(repo)
+    request = CreateProjectRequest(
+        name="Test Project", description="Test Description"
+    )
+
+    result = use_case.execute(request)
+
+    assert not result.is_success
+    assert result.error.code == ErrorCode.VALIDATION_ERROR
+    assert "Invalid project data" in result.error.message
+
+
+def test_create_project_handles_business_rule_violation():
+    """Test handling of BusinessRuleViolation during project creation."""
+
+    class BusinessRuleProjectRepository(InMemoryProjectRepository):
+        def save(self, project):
+            raise BusinessRuleViolation("Project limit exceeded")
+
+    repo = BusinessRuleProjectRepository()
+    use_case = CreateProjectUseCase(repo)
+    request = CreateProjectRequest(
+        name="Test Project", description="Test Description"
+    )
+
+    result = use_case.execute(request)
+
+    assert not result.is_success
+    assert result.error.code == ErrorCode.BUSINESS_RULE_VIOLATION
+    assert "Project limit exceeded" in result.error.message
+
+
+def test_complete_project_handles_validation_error():
+    """Test handling of ValidationError during project completion."""
+    project = Project(name="Test Project")
+    task = Task(title="Test Task", description="Test")
+    project.add_task(task)
+
+    class ValidationErrorProjectRepository(InMemoryProjectRepository):
+        def save(self, project):
+            raise ValidationError("Invalid completion state")
+
+    project_repo = ValidationErrorProjectRepository()
+    project_repo._projects[project.id] = project  # Add project directly
+    task_repo = InMemoryTaskRepository()
+    notifications = NotificationRecorder()
+
+    use_case = CompleteProjectUseCase(project_repo, task_repo, notifications)
+    request = CompleteProjectRequest(
+        project_id=str(project.id), completion_notes="Done!"
+    )
+
+    result = use_case.execute(request)
+
+    assert not result.is_success
+    assert result.error.code == ErrorCode.VALIDATION_ERROR
+    assert "Invalid completion state" in result.error.message
+    assert not notifications.completed_tasks
+
+
+def test_complete_project_fails_with_malformed_project_id():
+    """Test handling of nonexistent project ID during task creation."""
+    project_repo = InMemoryProjectRepository()
+
+    # Test that this raised ValueError
+    with pytest.raises(ValueError, match="Invalid project ID format"):
+        _ = CompleteProjectRequest(
+            project_id="malformed project id",
+        )
+
+
+def test_complete_project_handles_business_rule_violation():
+    """Test handling of BusinessRuleViolation during project completion."""
+    project = Project(name="Test Project")
+    task = Task(title="Test Task", description="Test")
+    project.add_task(task)
+
+    class BusinessRuleProjectRepository(InMemoryProjectRepository):
+        def save(self, project):
+            raise BusinessRuleViolation(
+                "Cannot complete project in current state"
+            )
+
+    project_repo = BusinessRuleProjectRepository()
+    project_repo._projects[project.id] = project  # Add project directly
+    task_repo = InMemoryTaskRepository()
+    notifications = NotificationRecorder()
+
+    use_case = CompleteProjectUseCase(project_repo, task_repo, notifications)
+    request = CompleteProjectRequest(
+        project_id=str(project.id), completion_notes="Done!"
+    )
+
+    result = use_case.execute(request)
+
+    assert not result.is_success
+    assert result.error.code == ErrorCode.BUSINESS_RULE_VIOLATION
+    assert "Cannot complete project in current state" in result.error.message
+    assert not notifications.completed_tasks
+
+
+def test_complete_project_handles_validation_error_from_task():
+    """Test handling of ValidationError from task operations during project completion."""
+    project = Project(name="Test Project")
+    task = Task(title="Test Task", description="Test")
+    project.add_task(task)
+
+    class ValidationErrorTaskRepository(InMemoryTaskRepository):
+        def save(self, task):
+            raise ValidationError("Invalid task completion state")
+
+    project_repo = InMemoryProjectRepository()
+    project_repo._projects[project.id] = project  # Add project directly
+    task_repo = ValidationErrorTaskRepository()
+    notifications = NotificationRecorder()
+
+    use_case = CompleteProjectUseCase(project_repo, task_repo, notifications)
+    request = CompleteProjectRequest(
+        project_id=str(project.id), completion_notes="Done!"
+    )
+
+    result = use_case.execute(request)
+
+    assert not result.is_success
+    assert result.error.code == ErrorCode.VALIDATION_ERROR
+    assert "Invalid task completion state" in result.error.message
+    assert not notifications.completed_tasks
+
+
+def test_complete_project_rolls_back_on_validation_error():
+    """Test that project and task states are rolled back on ValidationError."""
+    # Set up project with tasks
+    project = Project(name="Test Project")
+    task1 = Task(title="Task 1", description="Test")
+    task2 = Task(title="Task 2", description="Test")
+    project.add_task(task1)
+    project.add_task(task2)
+
+    # Repository that fails on project save but allows task saves
+    class FailingProjectRepository(InMemoryProjectRepository):
+        def save(self, project):
+            if project.status == ProjectStatus.COMPLETED:
+                raise ValidationError("Cannot complete project")
+            super().save(project)
+
+    project_repo = FailingProjectRepository()
+    task_repo = InMemoryTaskRepository()
+    notifications = NotificationRecorder()
+
+    # Save initial state
+    project_repo.save(project)
+    task_repo.save(task1)
+    task_repo.save(task2)
+
+    use_case = CompleteProjectUseCase(project_repo, task_repo, notifications)
+    request = CompleteProjectRequest(
+        project_id=str(project.id), completion_notes="Done!"
+    )
+
+    # Execute use case (should fail)
+    result = use_case.execute(request)
+
+    # Verify failure
+    assert not result.is_success
+    assert result.error.code == ErrorCode.VALIDATION_ERROR
+
+    # Verify project state was rolled back
+    saved_project = project_repo.get(project.id)
+    assert saved_project.status == ProjectStatus.ACTIVE
+
+    # Verify task states were rolled back
+    for task in [task1, task2]:
+        saved_task = task_repo.get(task.id)
+        assert saved_task.status == TaskStatus.TODO
+        assert saved_task.completed_at is None
+        assert saved_task.completion_notes is None
+
+
+def test_complete_project_rolls_back_on_business_rule_violation():
+    """Test that project and task states are rolled back on BusinessRuleViolation."""
+    # Set up project with tasks
+    project = Project(name="Test Project")
+    task1 = Task(title="Task 1", description="Test")
+    task2 = Task(title="Task 2", description="Test")
+    project.add_task(task1)
+    project.add_task(task2)
+
+    # Repository that fails on last task save
+    class FailingTaskRepository(InMemoryTaskRepository):
+        def save(self, task):
+            if (
+                task.status == TaskStatus.DONE and task.title == "Task 2"
+            ):  # Fail on second task
+                raise BusinessRuleViolation("Task limit reached")
+            super().save(task)
+
+    project_repo = InMemoryProjectRepository()
+    task_repo = FailingTaskRepository()
+    notifications = NotificationRecorder()
+
+    # Save initial state
+    project_repo.save(project)
+    task_repo.save(task1)
+    task_repo.save(task2)
+
+    use_case = CompleteProjectUseCase(project_repo, task_repo, notifications)
+    request = CompleteProjectRequest(
+        project_id=str(project.id), completion_notes="Done!"
+    )
+
+    # Execute use case (should fail)
+    result = use_case.execute(request)
+
+    # Verify failure
+    assert not result.is_success
+    assert result.error.code == ErrorCode.BUSINESS_RULE_VIOLATION
+
+    # Verify project state was rolled back
+    saved_project = project_repo.get(project.id)
+    assert saved_project.status == ProjectStatus.ACTIVE
+
+    # Verify all task states were rolled back
+    for task in [task1, task2]:
+        saved_task = task_repo.get(task.id)
+        assert saved_task.status == TaskStatus.TODO
+        assert saved_task.completed_at is None
+        assert saved_task.completion_notes is None
+
+    # Verify no notifications were kept
+    assert not notifications.completed_tasks
+
+<file_end>tests/application/test_project_use_cases.py</file_end>
+
+<file_start>tests/application/test_deadline_use_case.py</file_start>
+from datetime import datetime, timedelta
+from uuid import UUID
+
+from freezegun import freeze_time
+
+from todo_app.infrastructure.notifications.recorder import NotificationRecorder
+from todo_app.infrastructure.persistence.memory import InMemoryTaskRepository
+from todo_app.application.common.result import ErrorCode
+from todo_app.application.use_cases.deadline_use_cases import (
+    CheckDeadlinesUseCase,
+)
+from todo_app.domain.entities.task import Task
+from todo_app.domain.exceptions import (
+    BusinessRuleViolation,
+    ValidationError,
+    TaskNotFoundError,
+)
+from todo_app.domain.value_objects import Deadline
+
+
+
+def test_check_deadlines_empty_repository():
+    """Test checking deadlines with no tasks."""
+    repo = InMemoryTaskRepository()
+    notifications = NotificationRecorder()
+    use_case = CheckDeadlinesUseCase(repo, notifications)
+
+    result = use_case.execute()
+
+    assert result.is_success
+    assert result.value["notifications_sent"] == 0
+    assert not notifications.deadline_warnings
+
+
+@freeze_time("2024-01-01 12:00:00")
+def test_check_deadlines_no_approaching_deadlines():
+    """Test checking deadlines when no tasks have approaching deadlines."""
+    repo = InMemoryTaskRepository()
+    notifications = NotificationRecorder()
+    use_case = CheckDeadlinesUseCase(repo, notifications)
+
+    # Create tasks with deadlines well in the future
+    far_future_date = datetime.now() + timedelta(days=10)
+    task1 = Task(
+        title="Future Task 1",
+        description="Test",
+        due_date=Deadline(far_future_date),
+    )
+    task2 = Task(
+        title="Future Task 2",
+        description="Test",
+        due_date=Deadline(far_future_date + timedelta(days=1)),
+    )
+
+    repo.save(task1)
+    repo.save(task2)
+
+    result = use_case.execute()
+
+    assert result.is_success
+    assert result.value["notifications_sent"] == 0
+    assert not notifications.deadline_warnings
+
+
+@freeze_time("2024-01-01 12:00:00")
+def test_check_deadlines_approaching_deadlines():
+    """Test checking deadlines with tasks approaching their deadlines."""
+    repo = InMemoryTaskRepository()
+    notifications = NotificationRecorder()
+    use_case = CheckDeadlinesUseCase(repo, notifications)
+
+    # Create tasks with various deadlines
+    approaching_date = datetime.now() + timedelta(hours=23)  # Within 1 day
+    future_date = datetime.now() + timedelta(days=5)  # Not approaching
+
+    task1 = Task(
+        title="Approaching Task",
+        description="Test",
+        due_date=Deadline(approaching_date),
+    )
+    task2 = Task(
+        title="Future Task", description="Test", due_date=Deadline(future_date)
+    )
+
+    repo.save(task1)
+    repo.save(task2)
+
+    result = use_case.execute()
+
+    assert result.is_success
+    assert result.value["notifications_sent"] == 1
+    assert len(notifications.deadline_warnings) == 1
+    assert (
+        notifications.deadline_warnings[0][0] == task1.id
+    )  # First task should be warned
+    assert (
+        notifications.deadline_warnings[0][1] == 0
+    )  # Less than 1 day remaining
+
+
+@freeze_time("2024-01-01 12:00:00")
+def test_check_deadlines_custom_threshold():
+    """Test checking deadlines with a custom warning threshold."""
+    repo = InMemoryTaskRepository()
+    notifications = NotificationRecorder()
+    use_case = CheckDeadlinesUseCase(
+        repo, notifications, warning_threshold=timedelta(days=3)
+    )
+
+    # Create tasks with various deadlines
+    two_days = Task(
+        title="Two Days Task",
+        description="Test",
+        due_date=Deadline(datetime.now() + timedelta(days=2)),
+    )
+    four_days = Task(
+        title="Four Days Task",
+        description="Test",
+        due_date=Deadline(datetime.now() + timedelta(days=4)),
+    )
+
+    repo.save(two_days)
+    repo.save(four_days)
+
+    result = use_case.execute()
+
+    assert result.is_success
+    assert result.value["notifications_sent"] == 1
+    assert len(notifications.deadline_warnings) == 1
+    assert notifications.deadline_warnings[0][0] == two_days.id
+    assert notifications.deadline_warnings[0][1] == 2  # 2 days remaining
+
+
+@freeze_time("2024-01-01 12:00:00")
+def test_check_deadlines_completed_tasks():
+    """Test that completed tasks are not checked for deadlines."""
+    repo = InMemoryTaskRepository()
+    notifications = NotificationRecorder()
+    use_case = CheckDeadlinesUseCase(repo, notifications)
+
+    # Create a completed task with an approaching deadline
+    approaching_date = datetime.now() + timedelta(hours=12)
+    task = Task(
+        title="Completed Task",
+        description="Test",
+        due_date=Deadline(approaching_date),
+    )
+    task.complete()  # Mark as complete
+    repo.save(task)
+
+    result = use_case.execute()
+
+    assert result.is_success
+    assert result.value["notifications_sent"] == 0
+    assert not notifications.deadline_warnings
+
+
+@freeze_time("2024-01-01 12:00:00")
+def test_check_deadlines_multiple_notifications():
+    """Test checking multiple tasks with approaching deadlines."""
+    repo = InMemoryTaskRepository()
+    notifications = NotificationRecorder()
+    use_case = CheckDeadlinesUseCase(repo, notifications)
+
+    # Create multiple tasks with approaching deadlines
+    base_time = datetime.now()
+    tasks = []
+    for hours in [12, 18, 22]:  # All within 24 hours
+        task = Task(
+            title=f"Task due in {hours} hours",
+            description="Test",
+            due_date=Deadline(base_time + timedelta(hours=hours)),
+        )
+        tasks.append(task)
+        repo.save(task)
+
+    result = use_case.execute()
+
+    assert result.is_success
+    assert result.value["notifications_sent"] == 3
+    assert len(notifications.deadline_warnings) == 3
+    # Verify each task got a warning
+    task_ids = {warning[0] for warning in notifications.deadline_warnings}
+    assert task_ids == {task.id for task in tasks}
+
+
+@freeze_time("2024-01-01 12:00:00")
+def test_check_deadlines_handles_repository_errors():
+    """Test handling of repository errors during deadline check."""
+
+    class ErroringTaskRepository(InMemoryTaskRepository):
+        def get_active_tasks(self):
+            raise BusinessRuleViolation("Repository error")
+
+    repo = ErroringTaskRepository()
+    notifications = NotificationRecorder()
+    use_case = CheckDeadlinesUseCase(repo, notifications)
+
+    result = use_case.execute()
+
+    assert not result.is_success
+    assert result.error.code == ErrorCode.BUSINESS_RULE_VIOLATION
+    assert "Repository error" in result.error.message
+    assert (
+        not notifications.deadline_warnings
+    )  # No notifications should be sent
+
+
+@freeze_time("2024-01-01 12:00:00")
+def test_check_deadlines_handles_notification_errors():
+    """Test handling of notification service errors."""
+
+    class ErroringNotificationService(NotificationRecorder):
+        def notify_task_deadline_approaching(self, task_id, days_remaining):
+            raise ValidationError("Notification error")
+
+    repo = InMemoryTaskRepository()
+    notifications = ErroringNotificationService()
+    use_case = CheckDeadlinesUseCase(repo, notifications)
+
+    # Create a task with approaching deadline
+    due_date = datetime.now() + timedelta(hours=12)
+    task = Task(
+        title="Test Task", description="Test", due_date=Deadline(due_date)
+    )
+    repo.save(task)
+
+    result = use_case.execute()
+
+    assert not result.is_success
+    assert result.error.code == ErrorCode.VALIDATION_ERROR
+    assert "Notification error" in result.error.message
+
+
+@freeze_time("2024-01-01 12:00:00")
+def test_check_deadlines_handles_task_not_found():
+    """Test handling of TaskNotFoundError during deadline check."""
+
+    class TaskNotFoundRepository(InMemoryTaskRepository):
+        def get_active_tasks(self):
+            raise TaskNotFoundError(
+                UUID("123e4567-e89b-12d3-a456-426614174000")
+            )
+
+    repo = TaskNotFoundRepository()
+    notifications = NotificationRecorder()
+    use_case = CheckDeadlinesUseCase(repo, notifications)
+
+    result = use_case.execute()
+
+    assert not result.is_success
+    assert result.error.code == ErrorCode.NOT_FOUND
+    assert "Task" in result.error.message
+    assert not notifications.deadline_warnings
+
+<file_end>tests/application/test_deadline_use_case.py</file_end>
+
+<file_start>tests/application/test_project_repo.py</file_start>
+from uuid import UUID
+
+import pytest
+
+from todo_app.infrastructure.persistence.memory import InMemoryProjectRepository
+from todo_app.domain.entities.project import Project
+from todo_app.domain.exceptions import ProjectNotFoundError
+
+
+
+def test_project_repository_delete():
+    """Test deleting a project from repository."""
+    repo = InMemoryProjectRepository()
+    project = Project(name="Test Project")
+    repo.save(project)
+
+    # Verify project exists
+    assert repo.get(project.id) == project
+
+    # Delete project
+    repo.delete(project.id)
+
+    # Verify project is gone
+    with pytest.raises(ProjectNotFoundError):
+        repo.get(project.id)
+
+
+def test_project_repository_delete_nonexistent():
+    """Test deleting a nonexistent project."""
+    repo = InMemoryProjectRepository()
+    random_id = UUID("123e4567-e89b-12d3-a456-426614174000")
+
+    # Should not raise an error when deleting nonexistent project
+    repo.delete(random_id)
+
+
+def test_project_repository_delete_and_recreate():
+    """Test deleting a project and then creating a new one with the same name."""
+    repo = InMemoryProjectRepository()
+
+    # Create and delete first project
+    project1 = Project(name="Test Project")
+    repo.save(project1)
+    repo.delete(project1.id)
+
+    # Create second project with same name
+    project2 = Project(name="Test Project")
+    repo.save(project2)
+
+    # Verify new project exists and has different ID
+    saved_project = repo.get(project2.id)
+    assert saved_project == project2
+    assert saved_project.id != project1.id
+
+<file_end>tests/application/test_project_repo.py</file_end>
+
+<file_start>tests/application/test_task_use_cases.py</file_start>
+# todo_app/tests/application/test_task_use_cases.py
+"""Tests for task-related use cases."""
+
+from uuid import uuid4
+
+import pytest
+
+
+from todo_app.infrastructure.notifications.recorder import NotificationRecorder
+from todo_app.infrastructure.persistence.memory import InMemoryProjectRepository, InMemoryTaskRepository
+from todo_app.application.common.result import ErrorCode
+from todo_app.application.dtos.task_dtos import (
+    CreateTaskRequest,
+    CompleteTaskRequest,
+    SetTaskPriorityRequest,
+)
+from todo_app.application.use_cases.task_use_cases import (
+    CreateTaskUseCase,
+    CompleteTaskUseCase,
+    SetTaskPriorityUseCase,
+)
+from todo_app.domain.entities.project import Project
+from todo_app.domain.entities.task import Task
+from todo_app.domain.exceptions import (
+    BusinessRuleViolation,
+    ValidationError,
+)
+from todo_app.domain.value_objects import Priority, TaskStatus
+
+
+def test_create_task_basic():
+    """Test creating a task with basic information."""
+    # Arrange
+    repo = InMemoryTaskRepository()
+    project_repo = InMemoryProjectRepository()
+    use_case = CreateTaskUseCase(repo, project_repo)
+
+    request = CreateTaskRequest(
+        title="Test Task", description="Test Description"
+    )
+
+    # Act
+    result = use_case.execute(request)
+
+    # Assert
+    assert result.is_success
+    assert result.value.title == "Test Task"
+    assert result.value.description == "Test Description"
+    assert result.value.status == TaskStatus.TODO
+    assert result.value.priority == Priority.MEDIUM
+
+
+def test_create_task_with_project():
+    """Test creating a task associated with a project."""
+    # Arrange
+    task_repo = InMemoryTaskRepository()
+    project_repo = InMemoryProjectRepository()
+    use_case = CreateTaskUseCase(task_repo, project_repo)
+
+    # Create a project first
+    project = Project(name="Test Project")
+    project_repo.save(project)
+
+    request = CreateTaskRequest(
+        title="Test Task",
+        description="Test Description",
+        project_id=str(project.id),
+    )
+
+    # Act
+    result = use_case.execute(request)
+
+    # Assert
+    assert result.is_success
+    assert result.value.project_id == project.id
+
+
+def test_create_task_with_invalid_project():
+    """Test creating a task with non-existent project ID."""
+    # Arrange
+    task_repo = InMemoryTaskRepository()
+    project_repo = InMemoryProjectRepository()
+    use_case = CreateTaskUseCase(task_repo, project_repo)
+
+    request = CreateTaskRequest(
+        title="Test Task",
+        description="Test Description",
+        project_id=str(uuid4()),
+    )
+
+    # Act
+    result = use_case.execute(request)
+
+    # Assert
+    assert not result.is_success
+    assert result.error.code.value == "NOT_FOUND"
+
+
+def test_complete_task():
+    """Test completing a task."""
+    # Arrange
+    repo = InMemoryTaskRepository()
+    notifications = NotificationRecorder()
+    use_case = CompleteTaskUseCase(repo, notifications)
+
+    # Create and save a task
+    task = Task(title="Test Task", description="Test Description")
+    repo.save(task)
+
+    request = CompleteTaskRequest(
+        task_id=str(task.id), completion_notes="Done!"
+    )
+
+    # Act
+    result = use_case.execute(request)
+
+    # Assert
+    assert result.is_success
+    assert result.value.status == TaskStatus.DONE
+    assert result.value.completion_notes == "Done!"
+    assert task.id in notifications.completed_tasks
+
+
+def test_complete_nonexistent_task():
+    """Test completing a task that doesn't exist."""
+    # Arrange
+    repo = InMemoryTaskRepository()
+    notifications = NotificationRecorder()
+    use_case = CompleteTaskUseCase(repo, notifications)
+
+    request = CompleteTaskRequest(
+        task_id=str(uuid4()), completion_notes="Done!"
+    )
+
+    # Act
+    result = use_case.execute(request)
+
+    # Assert
+    assert not result.is_success
+    assert result.error.code.value == "NOT_FOUND"
+    assert not notifications.completed_tasks  # No notification sent
+
+
+def test_set_task_priority():
+    """Test setting a task's priority."""
+    # Arrange
+    repo = InMemoryTaskRepository()
+    notifications = NotificationRecorder()
+    use_case = SetTaskPriorityUseCase(repo, notifications)
+
+    # Create and save a task
+    task = Task(title="Test Task", description="Test Description")
+    repo.save(task)
+
+    request = SetTaskPriorityRequest(task_id=str(task.id), priority="HIGH")
+
+    # Act
+    result = use_case.execute(request)
+
+    # Assert
+    assert result.is_success
+    assert result.value.priority == Priority.HIGH
+    assert task.id in notifications.high_priority_tasks
+
+
+def test_set_task_invalid_priority():
+    """Test setting an invalid priority."""
+    # Arrange
+    repo = InMemoryTaskRepository()
+    notifications = NotificationRecorder()
+    use_case = SetTaskPriorityUseCase(repo, notifications)
+
+    task = Task(title="Test Task", description="Test Description")
+    repo.save(task)
+
+    with pytest.raises(ValueError) as exc_info:
+        SetTaskPriorityRequest(task_id=str(task.id), priority="INVALID")
+
+    assert "Priority must be one of" in str(exc_info.value)
+
+
+def test_complete_task_handles_validation_error():
+    """Test handling of ValidationError during task completion."""
+    task = Task(title="Test Task", description="Test Description")
+
+    class ValidationErrorTaskRepository(InMemoryTaskRepository):
+        def save(self, task):
+            raise ValidationError("Invalid completion state")
+
+    repo = ValidationErrorTaskRepository()
+    repo._tasks[task.id] = task  # Add task directly to repo
+    notifications = NotificationRecorder()
+    use_case = CompleteTaskUseCase(repo, notifications)
+
+    request = CompleteTaskRequest(
+        task_id=str(task.id), completion_notes="Done!"
+    )
+
+    result = use_case.execute(request)
+
+    assert not result.is_success
+    assert result.error.code == ErrorCode.VALIDATION_ERROR
+    assert "Invalid completion state" in result.error.message
+    assert not notifications.completed_tasks
+
+
+def test_complete_task_handles_business_rule_violation():
+    """Test handling of BusinessRuleViolation during task completion."""
+    task = Task(title="Test Task", description="Test Description")
+
+    class BusinessRuleTaskRepository(InMemoryTaskRepository):
+        def save(self, task):
+            raise BusinessRuleViolation("Cannot complete task in current state")
+
+    repo = BusinessRuleTaskRepository()
+    repo._tasks[task.id] = task  # Add task directly to repo
+    notifications = NotificationRecorder()
+    use_case = CompleteTaskUseCase(repo, notifications)
+
+    request = CompleteTaskRequest(
+        task_id=str(task.id), completion_notes="Done!"
+    )
+
+    result = use_case.execute(request)
+
+    assert not result.is_success
+    assert result.error.code == ErrorCode.BUSINESS_RULE_VIOLATION
+    assert "Cannot complete task in current state" in result.error.message
+    assert not notifications.completed_tasks
+
+
+def test_create_task_request_validates_project_id_format():
+    """Test that CreateTaskRequest validates project ID format."""
+    # Valid UUID should work
+    valid_request = CreateTaskRequest(
+        title="Test Task",
+        description="Test Description",
+        project_id="123e4567-e89b-12d3-a456-426614174000",
+    )
+    assert valid_request.project_id == "123e4567-e89b-12d3-a456-426614174000"
+
+    # Invalid UUID should raise ValueError
+    with pytest.raises(ValueError, match="Invalid project ID format"):
+        CreateTaskRequest(
+            title="Test Task",
+            description="Test Description",
+            project_id="not-a-uuid",
+        )
+
+    # Empty project_id should be allowed (Optional)
+    no_project_request = CreateTaskRequest(
+        title="Test Task", description="Test Description", project_id=None
+    )
+    assert no_project_request.project_id is None
+
+
+def test_create_task_handles_validation_error():
+    """Test handling of ValidationError during task creation."""
+
+    class ValidationErrorTaskRepository(InMemoryTaskRepository):
+        def save(self, task):
+            raise ValidationError("Invalid task data")
+
+    task_repo = ValidationErrorTaskRepository()
+    project_repo = InMemoryProjectRepository()
+    use_case = CreateTaskUseCase(task_repo, project_repo)
+
+    request = CreateTaskRequest(
+        title="Test Task", description="Test Description"
+    )
+
+    result = use_case.execute(request)
+
+    assert not result.is_success
+    assert result.error.code == ErrorCode.VALIDATION_ERROR
+    assert "Invalid task data" in result.error.message
+
+
+def test_create_task_handles_business_rule_violation():
+    """Test handling of BusinessRuleViolation during task creation."""
+
+    class BusinessRuleTaskRepository(InMemoryTaskRepository):
+        def save(self, task):
+            raise BusinessRuleViolation("Task limit exceeded")
+
+    task_repo = BusinessRuleTaskRepository()
+    project_repo = InMemoryProjectRepository()
+    use_case = CreateTaskUseCase(task_repo, project_repo)
+
+    request = CreateTaskRequest(
+        title="Test Task", description="Test Description"
+    )
+
+    result = use_case.execute(request)
+
+    assert not result.is_success
+    assert result.error.code == ErrorCode.BUSINESS_RULE_VIOLATION
+    assert "Task limit exceeded" in result.error.message
+
+
+def test_create_task_handles_validation_error_with_project():
+    """Test handling of ValidationError during task creation with project."""
+    project = Project(name="Test Project")
+
+    class ValidationErrorTaskRepository(InMemoryTaskRepository):
+        def save(self, task):
+            raise ValidationError("Invalid task data")
+
+    task_repo = ValidationErrorTaskRepository()
+    project_repo = InMemoryProjectRepository()
+    project_repo._projects[project.id] = project  # Add project directly
+    use_case = CreateTaskUseCase(task_repo, project_repo)
+
+    request = CreateTaskRequest(
+        title="Test Task",
+        description="Test Description",
+        project_id=str(project.id),
+    )
+
+    result = use_case.execute(request)
+
+    assert not result.is_success
+    assert result.error.code == ErrorCode.VALIDATION_ERROR
+    assert "Invalid task data" in result.error.message
+
+
+def test_complete_task_rolls_back_on_validation_error():
+    """Test that task state is rolled back on ValidationError."""
+    # Set up task
+    task = Task(title="Test Task", description="Test Description")
+
+    class FailingTaskRepository(InMemoryTaskRepository):
+        def save(self, task):
+            if task.status == TaskStatus.DONE:
+                raise ValidationError("Cannot complete task")
+            super().save(task)
+
+    repo = FailingTaskRepository()
+    notifications = NotificationRecorder()
+
+    # Save initial state
+    repo.save(task)
+
+    use_case = CompleteTaskUseCase(repo, notifications)
+    request = CompleteTaskRequest(
+        task_id=str(task.id), completion_notes="Done!"
+    )
+
+    # Execute use case (should fail)
+    result = use_case.execute(request)
+
+    # Verify failure
+    assert not result.is_success
+    assert result.error.code == ErrorCode.VALIDATION_ERROR
+
+    # Verify task state was rolled back
+    saved_task = repo.get(task.id)
+    assert saved_task.status == TaskStatus.TODO
+    assert saved_task.completed_at is None
+    assert saved_task.completion_notes is None
+
+    # Verify no notifications were sent
+    assert not notifications.completed_tasks
+
+
+def test_complete_task_rolls_back_on_business_rule_violation():
+    """Test that task state is rolled back on BusinessRuleViolation."""
+    # Set up task
+    task = Task(title="Test Task", description="Test Description")
+
+    class FailingTaskRepository(InMemoryTaskRepository):
+        def save(self, task):
+            if task.status == TaskStatus.DONE:
+                raise BusinessRuleViolation("Task completion limit reached")
+            super().save(task)
+
+    repo = FailingTaskRepository()
+    notifications = NotificationRecorder()
+
+    # Save initial state
+    repo.save(task)
+
+    use_case = CompleteTaskUseCase(repo, notifications)
+    request = CompleteTaskRequest(
+        task_id=str(task.id), completion_notes="Done!"
+    )
+
+    # Execute use case (should fail)
+    result = use_case.execute(request)
+
+    # Verify failure
+    assert not result.is_success
+    assert result.error.code == ErrorCode.BUSINESS_RULE_VIOLATION
+
+    # Verify task state was rolled back
+    saved_task = repo.get(task.id)
+    assert saved_task.status == TaskStatus.TODO
+    assert saved_task.completed_at is None
+    assert saved_task.completion_notes is None
+
+    # Verify no notifications were sent
+    assert not notifications.completed_tasks
+
+
+def test_complete_task_maintains_state_on_successful_completion():
+    """Test that task state changes persist when completion is successful."""
+    task = Task(title="Test Task", description="Test Description")
+
+    repo = InMemoryTaskRepository()
+    notifications = NotificationRecorder()
+
+    # Save initial state
+    repo.save(task)
+
+    use_case = CompleteTaskUseCase(repo, notifications)
+    completion_notes = "Done!"
+    request = CompleteTaskRequest(
+        task_id=str(task.id), completion_notes=completion_notes
+    )
+
+    # Execute use case (should succeed)
+    result = use_case.execute(request)
+
+    # Verify success
+    assert result.is_success
+
+    # Verify task state was updated and persisted
+    saved_task = repo.get(task.id)
+    assert saved_task.status == TaskStatus.DONE
+    assert saved_task.completed_at is not None
+    assert saved_task.completion_notes == completion_notes
+
+    # Verify notification was sent
+    assert task.id in notifications.completed_tasks
+
+
+def test_create_task_with_nonexistent_project():
+    """Test handling of nonexistent project ID during task creation."""
+    task_repo = InMemoryTaskRepository()
+    project_repo = InMemoryProjectRepository()
+    use_case = CreateTaskUseCase(task_repo, project_repo)
+
+    # Use a valid UUID format but for a nonexistent project
+    request = CreateTaskRequest(
+        title="Test Task",
+        description="Test Description",
+        project_id="123e4567-e89b-12d3-a456-426614174000",  # Valid UUID that doesn't exist
+    )
+
+    result = use_case.execute(request)
+
+    assert not result.is_success
+    assert result.error.code == ErrorCode.NOT_FOUND
+    assert (
+        "Project with id 123e4567-e89b-12d3-a456-426614174000 not found"
+        in result.error.message
+    )
+
+
+def test_create_task_fails_with_malformed_project_id():
+    # Test that this raised ValueError
+    with pytest.raises(ValueError, match="Invalid project ID format"):
+        _ = CreateTaskRequest(
+            title="Test Task",
+            description="Test Description",
+            project_id="malformed project id",
+        )
+
+
+def test_set_task_priority_fails_with_malformed_task_id():
+    # Test that this raised ValueError
+    with pytest.raises(ValueError, match="Invalid task ID format"):
+        _ = SetTaskPriorityRequest(
+            task_id="malformed project id",
+            priority="HIGH",
+        )
+
+
+def test_set_task_priority_handles_validation_error():
+    """Test handling of ValidationError during priority setting."""
+    # Create a task
+    task = Task(title="Test Task", description="Test Description")
+
+    class ValidationErrorTaskRepository(InMemoryTaskRepository):
+        def save(self, task):
+            raise ValidationError("Invalid priority state")
+
+    repo = ValidationErrorTaskRepository()
+    repo._tasks[task.id] = task  # Add task directly to repo
+    notifications = NotificationRecorder()
+
+    use_case = SetTaskPriorityUseCase(repo, notifications)
+    request = SetTaskPriorityRequest(task_id=str(task.id), priority="HIGH")
+
+    result = use_case.execute(request)
+
+    assert not result.is_success
+    assert result.error.code == ErrorCode.VALIDATION_ERROR
+    assert "Invalid priority state" in result.error.message
+    assert not notifications.high_priority_tasks
+
+<file_end>tests/application/test_task_use_cases.py</file_end>
+
+<file_start>tests/domain/test_active_tasks.py</file_start>
+from todo_app.infrastructure.persistence.memory import InMemoryTaskRepository
+from todo_app.domain.entities.task import Task
+from todo_app.domain.value_objects import TaskStatus
+
+
+
+def test_get_active_tasks_empty_repository():
+    """Test getting active tasks from an empty repository."""
+    repo = InMemoryTaskRepository()
+    tasks = repo.get_active_tasks()
+    assert len(tasks) == 0
+
+
+def test_get_active_tasks_only_active():
+    """Test getting active tasks when all tasks are active."""
+    repo = InMemoryTaskRepository()
+
+    # Create and save three active tasks
+    task1 = Task(title="Task 1", description="Test")
+    task2 = Task(title="Task 2", description="Test")
+    task3 = Task(title="Task 3", description="Test")
+
+    repo.save(task1)
+    repo.save(task2)
+    repo.save(task3)
+
+    tasks = repo.get_active_tasks()
+    assert len(tasks) == 3
+    assert all(task.status == TaskStatus.TODO for task in tasks)
+
+
+def test_get_active_tasks_mixed_status():
+    """Test getting active tasks with a mix of active and completed tasks."""
+    repo = InMemoryTaskRepository()
+
+    # Create and save tasks with different statuses
+    todo_task = Task(title="Todo Task", description="Test")
+    in_progress_task = Task(title="In Progress Task", description="Test")
+    in_progress_task.start()  # Sets status to IN_PROGRESS
+    completed_task = Task(title="Completed Task", description="Test")
+    completed_task.complete()  # Sets status to DONE
+
+    repo.save(todo_task)
+    repo.save(in_progress_task)
+    repo.save(completed_task)
+
+    tasks = repo.get_active_tasks()
+    assert len(tasks) == 2  # Should only get TODO and IN_PROGRESS tasks
+    assert completed_task not in tasks
+    assert all(task.status != TaskStatus.DONE for task in tasks)
+
+
+def test_get_active_tasks_only_completed():
+    """Test getting active tasks when all tasks are completed."""
+    repo = InMemoryTaskRepository()
+
+    # Create and save three completed tasks
+    task1 = Task(title="Task 1", description="Test")
+    task2 = Task(title="Task 2", description="Test")
+    task3 = Task(title="Task 3", description="Test")
+
+    for task in [task1, task2, task3]:
+        task.complete()
+        repo.save(task)
+
+    tasks = repo.get_active_tasks()
+    assert len(tasks) == 0
+
+
+def test_get_active_tasks_after_completion():
+    """Test getting active tasks after completing some tasks."""
+    repo = InMemoryTaskRepository()
+
+    # Create and save initial tasks
+    task1 = Task(title="Task 1", description="Test")
+    task2 = Task(title="Task 2", description="Test")
+    task3 = Task(title="Task 3", description="Test")
+
+    repo.save(task1)
+    repo.save(task2)
+    repo.save(task3)
+
+    # Initially should have all tasks
+    assert len(repo.get_active_tasks()) == 3
+
+    # Complete two tasks
+    task1.complete()
+    task3.complete()
+    repo.save(task1)
+    repo.save(task3)
+
+    # Should now only have one active task
+    active_tasks = repo.get_active_tasks()
+    assert len(active_tasks) == 1
+    assert task2 in active_tasks
+
+<file_end>tests/domain/test_active_tasks.py</file_end>
+
+<file_start>tests/domain/test_priority_and_deadline.py</file_start>
+# todo_app/tests/domain/test_priority_and_deadline.py
+"""Tests for task priority calculation and deadline value object."""
+
+from datetime import datetime, timedelta
+
+import pytest
+from freezegun import freeze_time
+
+from todo_app.domain.entities.task import Task
+from todo_app.domain.services.task_priority_calculator import (
+    TaskPriorityCalculator,
+)
+from todo_app.domain.value_objects import Deadline, Priority
+
+
+class TestDeadline:
+    def test_create_valid_future_deadline(self):
+        """Test creating a deadline in the future."""
+        future_date = datetime.now() + timedelta(days=1)
+        deadline = Deadline(future_date)
+        assert deadline.due_date == future_date
+
+    def test_reject_past_deadline(self):
+        """Test that creating a deadline in the past raises an error."""
+        past_date = datetime.now() - timedelta(days=1)
+        with pytest.raises(ValueError, match="Deadline cannot be in the past"):
+            Deadline(past_date)
+
+    @freeze_time("2024-01-01 12:00:00")
+    def test_is_overdue(self):
+        """Test checking if a deadline is overdue."""
+        # Create a deadline for 1 day from now
+        future_date = datetime.now() + timedelta(days=1)
+        deadline = Deadline(future_date)
+        assert not deadline.is_overdue()
+
+        # Time travel to after the deadline
+        with freeze_time("2024-01-03 12:00:00"):
+            assert deadline.is_overdue()
+
+    @freeze_time("2024-01-01 12:00:00")
+    def test_time_remaining(self):
+        """Test calculating remaining time until deadline."""
+        # Create a deadline for exactly 2 days from now
+        due_date = datetime.now() + timedelta(days=2)
+        deadline = Deadline(due_date)
+
+        remaining = deadline.time_remaining()
+        assert remaining == timedelta(days=2)
+
+        # Time travel to 1 day before deadline
+        with freeze_time("2024-01-02 12:00:00"):
+            remaining = deadline.time_remaining()
+            assert remaining == timedelta(days=1)
+
+        # Time travel past deadline
+        with freeze_time("2024-01-04 12:00:00"):
+            remaining = deadline.time_remaining()
+            assert remaining == timedelta(0)  # Should return 0 when overdue
+
+    @freeze_time("2024-01-01 12:00:00")
+    def test_is_approaching(self):
+        """Test detecting when deadline is approaching."""
+        # Create deadlines at various distances
+        far_date = datetime.now() + timedelta(days=5)
+        near_date = datetime.now() + timedelta(hours=12)
+        very_near_date = datetime.now() + timedelta(hours=1)
+
+        far_deadline = Deadline(far_date)
+        near_deadline = Deadline(near_date)
+        very_near_deadline = Deadline(very_near_date)
+
+        # Test with default 1-day warning threshold
+        assert not far_deadline.is_approaching()
+        assert near_deadline.is_approaching()
+        assert very_near_deadline.is_approaching()
+
+        # Test with custom warning threshold
+        custom_threshold = timedelta(hours=2)
+        assert not near_deadline.is_approaching(custom_threshold)
+        assert very_near_deadline.is_approaching(custom_threshold)
+
+
+class TestTaskPriorityCalculator:
+    @freeze_time("2024-01-01 12:00:00")
+    def test_calculate_priority_overdue(self):
+        """Test priority calculation for overdue tasks."""
+        # Create a task that will be overdue
+        due_date = datetime.now() + timedelta(days=1)
+        task = Task(
+            title="Test Task",
+            description="Test Description",
+            due_date=Deadline(due_date),
+        )
+
+        # Time travel to after the deadline
+        with freeze_time("2024-01-03 12:00:00"):
+            priority = TaskPriorityCalculator.calculate_priority(task)
+            assert priority == Priority.HIGH
+
+    @freeze_time("2024-01-01 12:00:00")
+    def test_calculate_priority_approaching_deadline(self):
+        """Test priority calculation for tasks with approaching deadlines."""
+        # Create a task due in 2 days
+        due_date = datetime.now() + timedelta(days=2)
+        task = Task(
+            title="Test Task",
+            description="Test Description",
+            due_date=Deadline(due_date),
+        )
+
+        priority = TaskPriorityCalculator.calculate_priority(task)
+        assert priority == Priority.MEDIUM
+
+    @freeze_time("2024-01-01 12:00:00")
+    def test_calculate_priority_far_deadline(self):
+        """Test priority calculation for tasks with far deadlines."""
+        # Create a task due in 5 days
+        due_date = datetime.now() + timedelta(days=5)
+        task = Task(
+            title="Test Task",
+            description="Test Description",
+            due_date=Deadline(due_date),
+        )
+
+        priority = TaskPriorityCalculator.calculate_priority(task)
+        assert priority == Priority.LOW
+
+    def test_calculate_priority_no_deadline(self):
+        """Test priority calculation for tasks without deadlines."""
+        task = Task(title="Test Task", description="Test Description")
+        expected_priority = task.priority
+        priority = TaskPriorityCalculator.calculate_priority(task)
+        assert priority == expected_priority
+
+    @pytest.mark.parametrize(
+        "days_until_due,expected_priority",
+        [
+            (0.5, Priority.HIGH),  # 12 hours until due
+            (1, Priority.MEDIUM),  # 1 day until due
+            (2, Priority.MEDIUM),  # 2 days until due
+            (3, Priority.LOW),  # 3 days until due
+            (7, Priority.LOW),  # 1 week until due
+        ],
+    )
+    @freeze_time("2024-01-01 12:00:00")
+    def test_priority_thresholds(self, days_until_due, expected_priority):
+        """Test various deadline thresholds and their resulting priorities."""
+        due_date = datetime.now() + timedelta(days=days_until_due)
+        task = Task(
+            title="Test Task",
+            description="Test Description",
+            due_date=Deadline(due_date),
+        )
+        priority = TaskPriorityCalculator.calculate_priority(task)
+        assert priority == expected_priority
+
+<file_end>tests/domain/test_priority_and_deadline.py</file_end>
+
+<file_start>tests/interfaces/presenters/test_cli_presenters.py</file_start>
+import dataclasses
+from datetime import datetime, timezone
+from uuid import UUID
+import pytest
+
+from todo_app.domain.value_objects import ProjectStatus
+from todo_app.domain.value_objects import TaskStatus, Priority
+from todo_app.application.dtos.task_dtos import TaskResponse
+from todo_app.application.dtos.project_dtos import CompleteProjectResponse, ProjectResponse
+from todo_app.interfaces.presenters.cli import CliTaskPresenter, CliProjectPresenter
+
+
+@pytest.fixture
+def task_presenter():
+    return CliTaskPresenter()
+
+
+@pytest.fixture
+def project_presenter():
+    return CliProjectPresenter()
+
+
+@pytest.fixture
+def sample_task_response():
+    return TaskResponse(
+        id="550e8400-e29b-41d4-a716-446655440000",
+        title="Test Task",
+        description="Test Description",
+        status=TaskStatus.IN_PROGRESS,
+        priority=Priority.HIGH,
+        due_date=datetime(2024, 1, 21, tzinfo=timezone.utc),
+        project_id=UUID("660e8400-e29b-41d4-a716-446655440000"),
+        completion_date=None,
+        completion_notes=None,
+    )
+
+
+def test_cli_task_presenter_formats_task(task_presenter, sample_task_response):
+    """Test that task presenter formats task data correctly for CLI."""
+    vm = task_presenter.present_task(sample_task_response)
+
+    assert vm.id == "550e8400-e29b-41d4-a716-446655440000"
+    assert vm.title == "Test Task"
+    assert vm.status_display == "[IN_PROGRESS]"
+    assert vm.priority_display == "High"
+    assert vm.due_date_display == "OVERDUE - Due: 2024-01-21"
+    assert vm.project_display == "Project: 660e8400-e29b-41d4-a716-446655440000"
+    assert vm.completion_info == "Not completed"
+
+
+def test_cli_task_presenter_handles_completed_task(task_presenter):
+    """Test that presenter correctly formats completed task."""
+    completed_date = datetime(2024, 1, 20, tzinfo=timezone.utc)
+    response = TaskResponse(
+        id="123",
+        title="Test Task",
+        description="Test Description",
+        status=TaskStatus.DONE,
+        priority=Priority.MEDIUM,
+        completion_date=completed_date,
+        completion_notes="All done",
+    )
+
+    vm = task_presenter.present_task(response)
+    assert vm.status_display == "[DONE]"
+    assert vm.completion_info == "Completed on 2024-01-20 00:00 - All done"
+
+
+@pytest.fixture
+def sample_project_response(sample_task_response):
+    return ProjectResponse(
+        id="660e8400-e29b-41d4-a716-446655440000",
+        name="Test Project",
+        description="Test Description",
+        status=ProjectStatus.ACTIVE,
+        completion_date=None,
+        tasks=[sample_task_response],
+    )
+
+
+def test_cli_project_presenter_formats_project(project_presenter, sample_project_response):
+    """Test that project presenter formats project data correctly for CLI."""
+    vm = project_presenter.present_project(sample_project_response)
+
+    assert vm.id == "660e8400-e29b-41d4-a716-446655440000"
+    assert vm.name == "Test Project"
+    assert vm.description == "Test Description"
+    assert vm.status_display == "[ACTIVE]"
+    assert vm.task_count == 1
+    assert vm.completed_task_count == 0
+    assert vm.completion_info == "Not completed"
+
+
+def test_cli_project_presenter_formats_completed_project(project_presenter):
+    """Test that presenter correctly formats completed project."""
+    completed_date = datetime(2024, 1, 20, tzinfo=timezone.utc)
+    response = ProjectResponse(
+        id="123",
+        name="Test Project",
+        description="Description",
+        status=ProjectStatus.COMPLETED,
+        completion_date=completed_date,
+        tasks=[],
+    )
+
+    vm = project_presenter.present_project(response)
+    assert vm.status_display == "[COMPLETED]"
+    assert vm.completion_info == "Completed on 2024-01-20 00:00"
+
+
+def test_cli_project_presenter_task_summary(project_presenter, sample_project_response):
+    """Test that presenter correctly formats task summary."""
+    vm = project_presenter.present_project(sample_project_response)
+    summary = project_presenter._format_task_summary(vm)
+    assert summary == "1 tasks (0 completed)"
+
+
+def test_cli_presenter_error_formatting(task_presenter, project_presenter):
+    """Test that presenters format errors consistently."""
+    task_error = task_presenter.present_error("Task error", "VALIDATION_ERROR")
+    project_error = project_presenter.present_error("Project error", "NOT_FOUND")
+
+    assert task_error.message == "Task error"
+    assert task_error.code == "VALIDATION_ERROR"
+    assert project_error.message == "Project error"
+    assert project_error.code == "NOT_FOUND"
+
+
+def test_cli_task_presenter_formats_high_priority_task(task_presenter, sample_task_response):
+    """Test formatting of high priority task."""
+    high_priority_task = dataclasses.replace(sample_task_response, priority=Priority.HIGH)
+    vm = task_presenter.present_task(high_priority_task)
+    assert vm.priority_display == "High"
+
+
+def test_cli_task_presenter_formats_task_without_due_date(task_presenter, sample_task_response):
+    """Test formatting of task without due date."""
+    task = dataclasses.replace(sample_task_response, due_date=None)
+    vm = task_presenter.present_task(task)
+    assert vm.due_date_display == "No due date"
+
+
+def test_cli_task_presenter_formats_task_without_project(task_presenter, sample_task_response):
+    """Test formatting of task without project."""
+    task = dataclasses.replace(sample_task_response, project_id=None)
+    vm = task_presenter.present_task(task)
+    assert vm.project_display == ""
+
+
+def test_cli_project_presenter_formats_empty_project(project_presenter):
+    """Test formatting of project with no tasks."""
+    project = ProjectResponse(
+        id="123e4567-e89b-12d3-a456-426614174000",
+        name="Empty Project",
+        description="No tasks",
+        status=ProjectStatus.ACTIVE,
+        completion_date=None,
+        tasks=[],
+    )
+
+    vm = project_presenter.present_project(project)
+    assert vm.task_count == 0
+    assert vm.completed_task_count == 0
+
+    summary = project_presenter._format_task_summary(vm)
+    assert summary == "0 tasks (0 completed)"
+
+
+def test_cli_project_presenter_formats_project_with_mixed_tasks(project_presenter):
+    """Test formatting of project with both completed and incomplete tasks."""
+    completed_task = TaskResponse(
+        id="123",
+        title="Done Task",
+        description="Done",
+        status=TaskStatus.DONE,
+        priority=Priority.MEDIUM,
+    )
+
+    in_progress_task = TaskResponse(
+        id="456",
+        title="In Progress Task",
+        description="Working",
+        status=TaskStatus.IN_PROGRESS,
+        priority=Priority.MEDIUM,
+    )
+
+    project = ProjectResponse(
+        id="123e4567-e89b-12d3-a456-426614174000",
+        name="Mixed Project",
+        description="Mixed tasks",
+        status=ProjectStatus.ACTIVE,
+        completion_date=None,
+        tasks=[completed_task, in_progress_task],
+    )
+
+    vm = project_presenter.present_project(project)
+    assert vm.task_count == 2
+    assert vm.completed_task_count == 1
+
+    summary = project_presenter._format_task_summary(vm)
+    assert summary == "2 tasks (1 completed)"
+
+
+def test_cli_presenters_error_formatting_consistency(task_presenter, project_presenter):
+    """Test that both presenters format errors consistently."""
+    error_message = "Test error"
+    error_code = "TEST_ERROR"
+
+    task_error = task_presenter.present_error(error_message, error_code)
+    project_error = project_presenter.present_error(error_message, error_code)
+
+    assert task_error.message == project_error.message == error_message
+    assert task_error.code == project_error.code == error_code
+
+
+def test_cli_project_presenter_handles_project_completion(project_presenter):
+    """Test presenting project completion information."""
+    completion_date = datetime(2024, 1, 20, tzinfo=timezone.utc)
+    completion_response = CompleteProjectResponse(
+        id="550e8400-e29b-41d4-a716-446655440000",
+        status=ProjectStatus.COMPLETED,
+        completion_date=completion_date,
+        task_count=5,
+        completion_notes="Project completed successfully",
+    )
+
+    vm = project_presenter.present_completion(completion_response)
+    assert vm.project_id == "550e8400-e29b-41d4-a716-446655440000"
+    assert vm.completion_notes == "Project completed successfully"
+
+
+def test_cli_project_presenter_task_aggregation(project_presenter):
+    """Test presenter correctly counts completed vs total tasks."""
+    tasks = [
+        TaskResponse(  # Completed task
+            id="123",
+            title="Done Task",
+            description="Done",
+            status=TaskStatus.DONE,
+            priority=Priority.MEDIUM,
+            completion_date=datetime.now(timezone.utc),
+        ),
+        TaskResponse(  # In progress task
+            id="456",
+            title="Active Task",
+            description="Doing",
+            status=TaskStatus.IN_PROGRESS,
+            priority=Priority.HIGH,
+        ),
+        TaskResponse(  # Todo task
+            id="789",
+            title="Future Task",
+            description="To do",
+            status=TaskStatus.TODO,
+            priority=Priority.LOW,
+        ),
+    ]
+
+    project_response = ProjectResponse(
+        id="550e8400-e29b-41d4-a716-446655440000",
+        name="Test Project",
+        description="Testing task counts",
+        status=ProjectStatus.ACTIVE,
+        completion_date=None,
+        tasks=tasks,
+    )
+
+    vm = project_presenter.present_project(project_response)
+    assert vm.task_count == 3
+    assert vm.completed_task_count == 1
+
+
+def test_cli_project_presenter_formats_long_description(project_presenter):
+    """Test presenter handles long project descriptions appropriately."""
+    long_description = "This is a very long description " * 10  # Creates a long string
+
+    project_response = ProjectResponse(
+        id="550e8400-e29b-41d4-a716-446655440000",
+        name="Test Project",
+        description=long_description,
+        status=ProjectStatus.ACTIVE,
+        completion_date=None,
+        tasks=[],
+    )
+
+    vm = project_presenter.present_project(project_response)
+    assert vm.description == long_description  # Verify description is preserved
+
+
+def test_cli_project_presenter_formats_special_characters(project_presenter):
+    """Test presenter handles special characters in project fields."""
+    project_response = ProjectResponse(
+        id="550e8400-e29b-41d4-a716-446655440000",
+        name="Test & Project!",
+        description="Testing @ special # characters!",
+        status=ProjectStatus.ACTIVE,
+        completion_date=None,
+        tasks=[],
+    )
+
+    vm = project_presenter.present_project(project_response)
+    assert vm.name == "Test & Project!"
+    assert vm.description == "Testing @ special # characters!"
+
+
+def test_cli_task_presenter_formats_completed_task_with_notes(task_presenter):
+    """Test formatting of completed task with completion notes."""
+    completion_date = datetime(2024, 1, 20, tzinfo=timezone.utc)
+    task_response = TaskResponse(
+        id="550e8400-e29b-41d4-a716-446655440000",
+        title="Test Task",
+        description="Test Description",
+        status=TaskStatus.DONE,
+        priority=Priority.MEDIUM,
+        completion_date=completion_date,
+        completion_notes="Task completed with additional notes",
+    )
+
+    vm = task_presenter.present_task(task_response)
+    assert vm.status_display == "[DONE]"
+    assert "Task completed with additional notes" in vm.completion_info
+
+
+def test_cli_project_presenter_handles_empty_completion_notes(project_presenter):
+    """Test presenting project completion without notes."""
+    completion_date = datetime(2024, 1, 20, tzinfo=timezone.utc)
+    completion_response = CompleteProjectResponse(
+        id="550e8400-e29b-41d4-a716-446655440000",
+        status=ProjectStatus.COMPLETED,
+        completion_date=completion_date,
+        task_count=5,
+        completion_notes=None,
+    )
+
+    vm = project_presenter.present_completion(completion_response)
+    assert vm.completion_notes is None
+
+
+def test_cli_task_presenter_formats_overdue_task(task_presenter):
+    """Test formatting of overdue task."""
+    past_date = datetime(2023, 1, 1, tzinfo=timezone.utc)
+    task_response = TaskResponse(
+        id="550e8400-e29b-41d4-a716-446655440000",
+        title="Overdue Task",
+        description="This task is overdue",
+        status=TaskStatus.TODO,
+        priority=Priority.HIGH,
+        due_date=past_date,
+    )
+
+    vm = task_presenter.present_task(task_response)
+    assert "OVERDUE" in vm.due_date_display
+
+
+def test_presenter_error_validation_codes():
+    """Test presenters handle all possible error codes consistently."""
+    error_codes = ["VALIDATION_ERROR", "NOT_FOUND", "BUSINESS_RULE_VIOLATION"]
+    presenter = CliTaskPresenter()
+
+    for code in error_codes:
+        error_vm = presenter.present_error(f"Test error for {code}", code)
+        assert error_vm.code == code
+        assert error_vm.message.startswith("Test error for")
+
+
+def test_presenters_handle_empty_strings(task_presenter, project_presenter):
+    """Test presenters handle empty strings in various fields."""
+    task_response = TaskResponse(
+        id="550e8400-e29b-41d4-a716-446655440000",
+        title="",  # Empty title
+        description="",  # Empty description
+        status=TaskStatus.TODO,
+        priority=Priority.MEDIUM,
+    )
+
+    vm = task_presenter.present_task(task_response)
+    assert vm.title == ""
+    assert vm.description == ""
+
+
+def test_presenters_handle_very_long_content(task_presenter):
+    """Test presenters handle very long content appropriately."""
+    very_long_description = "A" * 1000
+    task_response = TaskResponse(
+        id="550e8400-e29b-41d4-a716-446655440000",
+        title="Test Task",
+        description=very_long_description,
+        status=TaskStatus.TODO,
+        priority=Priority.MEDIUM,
+    )
+
+    vm = task_presenter.present_task(task_response)
+    assert len(vm.description) == len(very_long_description)
+
+<file_end>tests/interfaces/presenters/test_cli_presenters.py</file_end>
+
+<file_start>tests/interfaces/view_model/test_project_vm.py</file_start>
+import dataclasses
+import pytest
+from todo_app.interfaces.view_models.project_vm import ProjectViewModel
+
+
+def test_project_view_model_creation():
+    """Test creating a ProjectViewModel with all fields."""
+    vm = ProjectViewModel(
+        id="123",
+        name="Test Project",
+        description="Test Description",
+        status_display="[ACTIVE]",
+        task_count=5,
+        completed_task_count=2,
+        completion_info="Not completed",
+    )
+
+    assert vm.id == "123"
+    assert vm.name == "Test Project"
+    assert vm.description == "Test Description"
+    assert vm.status_display == "[ACTIVE]"
+    assert vm.task_count == 5
+    assert vm.completed_task_count == 2
+    assert vm.completion_info == "Not completed"
+
+
+def test_project_view_model_immutability():
+    """Test that ProjectViewModel is immutable."""
+    vm = ProjectViewModel(
+        id="123",
+        name="Test Project",
+        description="Test Description",
+        status_display="[ACTIVE]",
+        task_count=5,
+        completed_task_count=2,
+        completion_info="Not completed",
+    )
+
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        vm.name = "New Name"
+
+<file_end>tests/interfaces/view_model/test_project_vm.py</file_end>
+
+<file_start>tests/interfaces/view_model/test_task_vm.py</file_start>
+import dataclasses
+import pytest
+
+from todo_app.interfaces.view_models.task_vm import TaskViewModel
+
+
+def test_task_view_model_creation():
+    """Test creating a TaskViewModel with all fields."""
+    vm = TaskViewModel(
+        id="123",
+        title="Test Task",
+        description="Test Description",
+        status_display="[IN_PROGRESS]",
+        priority_display="HIGH",
+        due_date_display="2024-01-21",
+        project_display="Project: Test",
+        completion_info="Not completed",
+    )
+
+    assert vm.id == "123"
+    assert vm.title == "Test Task"
+    assert vm.description == "Test Description"
+    assert vm.status_display == "[IN_PROGRESS]"
+    assert vm.priority_display == "HIGH"
+    assert vm.due_date_display == "2024-01-21"
+    assert vm.project_display == "Project: Test"
+    assert vm.completion_info == "Not completed"
+
+
+def test_task_view_model_immutability():
+    """Test that TaskViewModel is immutable."""
+    vm = TaskViewModel(
+        id="123",
+        title="Test Task",
+        description="Test Description",
+        status_display="[TODO]",
+        priority_display="LOW",
+        due_date_display="2024-01-21",
+        project_display="Project: Test",
+        completion_info="Not completed",
+    )
+
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        vm.title = "New Title"
+
+<file_end>tests/interfaces/view_model/test_task_vm.py</file_end>
+
+<file_start>tests/interfaces/view_model/test_base.py</file_start>
+# tests/interfaces/view_models/test_base.py
+import dataclasses
+import pytest
+from todo_app.interfaces.view_models.base import ErrorViewModel, OperationResult
+
+
+def test_error_view_model_creation():
+    """Test creating an error view model."""
+    error = ErrorViewModel(message="Test error", code="TEST_ERROR")
+    assert error.message == "Test error"
+    assert error.code == "TEST_ERROR"
+
+
+def test_error_view_model_immutability():
+    """Test that error view model is immutable."""
+    error = ErrorViewModel(message="Test error", code="TEST_ERROR")
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        error.message = "New message"
+
+
+def test_operation_result_success():
+    """Test creating a successful operation result."""
+    data = {"key": "value"}
+    result = OperationResult.succeed(data)
+
+    assert result.is_success
+    assert result.success == data
+    with pytest.raises(ValueError):
+        _ = result.error
+
+
+def test_operation_result_failure():
+    """Test creating a failed operation result."""
+    error = ErrorViewModel(message="Failed", code="ERROR")
+    result = OperationResult.fail(error.message, error.code)
+
+    assert not result.is_success
+    assert result.error.message == "Failed"
+    assert result.error.code == "ERROR"
+    with pytest.raises(ValueError):
+        _ = result.success
+
+
+def test_operation_result_invalid_creation():
+    """Test that OperationResult cannot be created with both success and error."""
+    with pytest.raises(ValueError):
+        OperationResult(
+            success={"key": "value"}, error=ErrorViewModel(message="Failed", code="ERROR")
+        )
+
+
+def test_operation_result_invalid_empty_creation():
+    """Test that OperationResult cannot be created without success or error."""
+    with pytest.raises(ValueError):
+        OperationResult()
+
+<file_end>tests/interfaces/view_model/test_base.py</file_end>
+
+<file_start>tests/interfaces/controllers/test_task_controller.py</file_start>
+from datetime import datetime, timezone
+import pytest
+from uuid import uuid4
+from todo_app.interfaces.view_models.base import ErrorViewModel
+from todo_app.domain.value_objects import TaskStatus, Priority
+from todo_app.application.dtos.task_dtos import TaskResponse
+from todo_app.application.common.result import Result, Error, ErrorCode
+from todo_app.interfaces.controllers.task_controller import TaskController
+from todo_app.interfaces.view_models.task_vm import TaskViewModel
+
+
+@pytest.fixture
+def mock_create_use_case():
+    class MockCreateUseCase:
+        def execute(self, request):
+            if request.title == "error":
+                return Result.failure(
+                    Error(code=ErrorCode.VALIDATION_ERROR, message="Invalid title")
+                )
+            return Result.success(
+                TaskResponse(
+                    id=str(uuid4()),
+                    title=request.title,
+                    description=request.description,
+                    status=TaskStatus.TODO,
+                    priority=Priority.MEDIUM,
+                )
+            )
+
+    return MockCreateUseCase()
+
+
+@pytest.fixture
+def mock_complete_use_case():
+    class MockCompleteUseCase:
+        def execute(self, request):
+            # Specific UUID that we'll use to test "not found" scenario
+            not_found_id = "550e8400-e29b-41d4-a716-446655440000"
+
+            if request.task_id == not_found_id:
+                return Result.failure(Error(code=ErrorCode.NOT_FOUND, message="Task not found"))
+            return Result.success(
+                TaskResponse(
+                    id=request.task_id,
+                    title="Test Task",
+                    description="Description",
+                    status=TaskStatus.DONE,
+                    priority=Priority.MEDIUM,
+                    completion_date=datetime.now(timezone.utc),
+                    completion_notes=request.completion_notes,
+                )
+            )
+
+    return MockCompleteUseCase()
+
+
+@pytest.fixture
+def mock_presenter():
+    class MockPresenter:
+        def present_task(self, task_response):
+            return TaskViewModel(
+                id=task_response.id,
+                title=task_response.title,
+                description=task_response.description,
+                status_display=f"[{task_response.status.name}]",
+                priority_display=str(task_response.priority.value),
+                due_date_display="",
+                project_display="",
+                completion_info="",
+            )
+
+        def present_error(self, message, code):
+            return ErrorViewModel(message=message, code=code)
+
+    return MockPresenter()
+
+
+@pytest.fixture
+def task_controller(mock_create_use_case, mock_complete_use_case, mock_presenter):
+    return TaskController(
+        create_use_case=mock_create_use_case,
+        complete_use_case=mock_complete_use_case,  # Make sure we're using the mock
+        presenter=mock_presenter,
+    )
+
+
+def test_handle_create_success(task_controller):
+    """Test successful task creation."""
+    result = task_controller.handle_create(title="Test Task", description="Test Description")
+
+    assert result.is_success
+    assert isinstance(result.success, TaskViewModel)
+    assert result.success.title == "Test Task"
+    assert result.success.status_display == "[TODO]"
+
+
+def test_handle_create_failure(task_controller):
+    """Test failed task creation."""
+    result = task_controller.handle_create(title="error", description="Test Description")
+
+    assert not result.is_success
+    assert result.error.message == "Invalid title"
+    assert result.error.code == "VALIDATION_ERROR"
+
+
+def test_handle_create_validation_error(task_controller):
+    """Test validation error handling."""
+    result = task_controller.handle_create(
+        title="", description="Test Description"  # Empty title should raise ValueError
+    )
+
+    assert not result.is_success
+    assert "Title is required" in result.error.message
+    assert result.error.code == "VALIDATION_ERROR"
+
+
+def test_handle_complete_success(task_controller):
+    """Test successful task completion."""
+    task_id = str(uuid4())
+    result = task_controller.handle_complete(task_id=task_id, notes="Completed successfully")
+
+    assert result.is_success
+    assert result.success.id == task_id
+    assert isinstance(result.success, TaskViewModel)
+    assert result.success.status_display == "[DONE]"
+
+
+def test_handle_complete_invalid_id_format(task_controller):
+    """Test completion with invalid task ID format."""
+    result = task_controller.handle_complete(
+        task_id="not-a-uuid", notes="Will fail"  # Invalid UUID format
+    )
+
+    assert not result.is_success
+    assert "Invalid task ID format" in result.error.message
+    assert result.error.code == "VALIDATION_ERROR"
+
+
+def test_handle_complete_task_not_found(task_controller):
+    """Test completion of non-existent task."""
+    result = task_controller.handle_complete(
+        task_id="550e8400-e29b-41d4-a716-446655440000",  # This UUID will trigger the not found case
+        notes="Will fail",
+    )
+
+    assert not result.is_success
+    assert "Task not found" in result.error.message
+    assert result.error.code == "NOT_FOUND"
+
+<file_end>tests/interfaces/controllers/test_task_controller.py</file_end>
+
+<file_start>tests/interfaces/controllers/test_project_controller.py</file_start>
+# tests/interfaces/controllers/test_project_controller.py
+from datetime import datetime, timezone
+from uuid import uuid4
+import pytest
+
+from todo_app.domain.value_objects import ProjectStatus
+from todo_app.application.dtos.project_dtos import ProjectResponse, CompleteProjectResponse
+from todo_app.application.common.result import Result, Error, ErrorCode
+from todo_app.interfaces.controllers.project_controller import ProjectController
+from todo_app.interfaces.view_models.project_vm import ProjectViewModel
+from todo_app.interfaces.view_models.base import ErrorViewModel
+
+
+@pytest.fixture
+def mock_create_use_case():
+    class MockCreateUseCase:
+        def execute(self, request):
+            if request.name == "error":
+                return Result.failure(
+                    Error(code=ErrorCode.VALIDATION_ERROR, message="Invalid project name")
+                )
+            return Result.success(
+                ProjectResponse(
+                    id=str(uuid4()),
+                    name=request.name,
+                    description=request.description,
+                    status=ProjectStatus.ACTIVE,
+                    completion_date=None,
+                    tasks=[],
+                )
+            )
+
+    return MockCreateUseCase()
+
+
+@pytest.fixture
+def mock_complete_use_case():
+    class MockCompleteUseCase:
+        def execute(self, request):
+            not_found_id = "550e8400-e29b-41d4-a716-446655440000"
+
+            if request.project_id == not_found_id:
+                return Result.failure(Error(code=ErrorCode.NOT_FOUND, message="Project not found"))
+            return Result.success(
+                ProjectResponse(
+                    id=request.project_id,
+                    name="Test Project",
+                    description="Description",
+                    status=ProjectStatus.COMPLETED,
+                    completion_date=datetime.now(timezone.utc),
+                    tasks=[],
+                )
+            )
+
+    return MockCompleteUseCase()
+
+
+@pytest.fixture
+def mock_presenter():
+    class MockPresenter:
+        def present_project(self, project_response):
+            return ProjectViewModel(
+                id=project_response.id,
+                name=project_response.name,
+                description=project_response.description,
+                status_display=f"[{project_response.status.name}]",
+                task_count=len(project_response.tasks),
+                completed_task_count=0,
+                completion_info=(
+                    "Not completed" if not project_response.completion_date else "Completed"
+                ),
+            )
+
+        def present_error(self, message, code):
+            return ErrorViewModel(message=message, code=code)
+
+    return MockPresenter()
+
+
+@pytest.fixture
+def project_controller(mock_create_use_case, mock_complete_use_case, mock_presenter):
+    return ProjectController(
+        create_use_case=mock_create_use_case,
+        complete_use_case=mock_complete_use_case,
+        presenter=mock_presenter,
+    )
+
+
+def test_handle_create_success(project_controller):
+    """Test successful project creation."""
+    result = project_controller.handle_create(name="Test Project", description="Test Description")
+
+    assert result.is_success
+    assert isinstance(result.success, ProjectViewModel)
+    assert result.success.name == "Test Project"
+    assert result.success.status_display == "[ACTIVE]"
+
+
+def test_handle_create_failure(project_controller):
+    """Test failed project creation."""
+    result = project_controller.handle_create(name="error", description="Test Description")
+
+    assert not result.is_success
+    assert result.error.message == "Invalid project name"
+    assert result.error.code == "VALIDATION_ERROR"
+
+
+def test_handle_create_validation_error(project_controller):
+    """Test validation error handling."""
+    result = project_controller.handle_create(
+        name="", description="Test Description"  # Empty name should raise ValueError
+    )
+
+    assert not result.is_success
+    assert "Project name is required" in result.error.message
+    assert result.error.code == "VALIDATION_ERROR"
+
+
+def test_handle_complete_success(project_controller):
+    """Test successful project completion."""
+    # Use a valid UUID format
+    valid_uuid = "123e4567-e89b-12d3-a456-426614174000"
+
+    result = project_controller.handle_complete(
+        project_id=valid_uuid, notes="Completed successfully"
+    )
+
+    assert result.is_success
+    assert isinstance(result.success, ProjectViewModel)
+    assert result.success.status_display == "[COMPLETED]"
+    assert result.success.completion_info == "Completed"
+
+
+def test_handle_complete_invalid_id_format(project_controller):
+    """Test completion with invalid project ID format."""
+    result = project_controller.handle_complete(project_id="not-a-uuid", notes="Will fail")
+
+    assert not result.is_success
+    assert "Invalid project ID format" in result.error.message
+    assert result.error.code == "VALIDATION_ERROR"
+
+
+def test_handle_complete_project_not_found(project_controller):
+    """Test completion of non-existent project."""
+    result = project_controller.handle_complete(
+        project_id="550e8400-e29b-41d4-a716-446655440000",  # Valid UUID but project doesn't exist
+        notes="Will fail",
+    )
+
+    assert not result.is_success
+    assert "Project not found" in result.error.message
+    assert result.error.code == "NOT_FOUND"
+
+<file_end>tests/interfaces/controllers/test_project_controller.py</file_end>
+
