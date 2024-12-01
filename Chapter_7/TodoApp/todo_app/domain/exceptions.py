@@ -28,6 +28,12 @@ class ProjectNotFoundError(DomainError):
         super().__init__(f"Project with id {project_id} not found")
 
 
+class InboxNotFoundError(DomainError):
+    """Raised when attempting to access the INBOX project that doesn't exist."""
+
+    pass
+
+
 class ValidationError(DomainError):
     """Raised when domain validation rules are violated."""
 

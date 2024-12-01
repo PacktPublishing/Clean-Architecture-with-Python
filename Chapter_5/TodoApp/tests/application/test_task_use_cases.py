@@ -37,9 +37,7 @@ def test_create_task_basic():
     project_repo = InMemoryProjectRepository()
     use_case = CreateTaskUseCase(repo, project_repo)
 
-    request = CreateTaskRequest(
-        title="Test Task", description="Test Description"
-    )
+    request = CreateTaskRequest(title="Test Task", description="Test Description")
 
     # Act
     result = use_case.execute(request)
@@ -74,7 +72,7 @@ def test_create_task_with_project():
 
     # Assert
     assert result.is_success
-    assert result.value.project_id == project.id
+    assert result.value.project_id == str(project.id)
 
 
 def test_create_task_with_invalid_project():
@@ -109,9 +107,7 @@ def test_complete_task():
     task = Task(title="Test Task", description="Test Description")
     repo.save(task)
 
-    request = CompleteTaskRequest(
-        task_id=str(task.id), completion_notes="Done!"
-    )
+    request = CompleteTaskRequest(task_id=str(task.id), completion_notes="Done!")
 
     # Act
     result = use_case.execute(request)
@@ -130,9 +126,7 @@ def test_complete_nonexistent_task():
     notifications = NotificationRecorder()
     use_case = CompleteTaskUseCase(repo, notifications)
 
-    request = CompleteTaskRequest(
-        task_id=str(uuid4()), completion_notes="Done!"
-    )
+    request = CompleteTaskRequest(task_id=str(uuid4()), completion_notes="Done!")
 
     # Act
     result = use_case.execute(request)
@@ -194,9 +188,7 @@ def test_complete_task_handles_validation_error():
     notifications = NotificationRecorder()
     use_case = CompleteTaskUseCase(repo, notifications)
 
-    request = CompleteTaskRequest(
-        task_id=str(task.id), completion_notes="Done!"
-    )
+    request = CompleteTaskRequest(task_id=str(task.id), completion_notes="Done!")
 
     result = use_case.execute(request)
 
@@ -219,9 +211,7 @@ def test_complete_task_handles_business_rule_violation():
     notifications = NotificationRecorder()
     use_case = CompleteTaskUseCase(repo, notifications)
 
-    request = CompleteTaskRequest(
-        task_id=str(task.id), completion_notes="Done!"
-    )
+    request = CompleteTaskRequest(task_id=str(task.id), completion_notes="Done!")
 
     result = use_case.execute(request)
 
@@ -267,9 +257,7 @@ def test_create_task_handles_validation_error():
     project_repo = InMemoryProjectRepository()
     use_case = CreateTaskUseCase(task_repo, project_repo)
 
-    request = CreateTaskRequest(
-        title="Test Task", description="Test Description"
-    )
+    request = CreateTaskRequest(title="Test Task", description="Test Description")
 
     result = use_case.execute(request)
 
@@ -289,9 +277,7 @@ def test_create_task_handles_business_rule_violation():
     project_repo = InMemoryProjectRepository()
     use_case = CreateTaskUseCase(task_repo, project_repo)
 
-    request = CreateTaskRequest(
-        title="Test Task", description="Test Description"
-    )
+    request = CreateTaskRequest(title="Test Task", description="Test Description")
 
     result = use_case.execute(request)
 
@@ -344,9 +330,7 @@ def test_complete_task_rolls_back_on_validation_error():
     repo.save(task)
 
     use_case = CompleteTaskUseCase(repo, notifications)
-    request = CompleteTaskRequest(
-        task_id=str(task.id), completion_notes="Done!"
-    )
+    request = CompleteTaskRequest(task_id=str(task.id), completion_notes="Done!")
 
     # Execute use case (should fail)
     result = use_case.execute(request)
@@ -383,9 +367,7 @@ def test_complete_task_rolls_back_on_business_rule_violation():
     repo.save(task)
 
     use_case = CompleteTaskUseCase(repo, notifications)
-    request = CompleteTaskRequest(
-        task_id=str(task.id), completion_notes="Done!"
-    )
+    request = CompleteTaskRequest(task_id=str(task.id), completion_notes="Done!")
 
     # Execute use case (should fail)
     result = use_case.execute(request)
@@ -416,9 +398,7 @@ def test_complete_task_maintains_state_on_successful_completion():
 
     use_case = CompleteTaskUseCase(repo, notifications)
     completion_notes = "Done!"
-    request = CompleteTaskRequest(
-        task_id=str(task.id), completion_notes=completion_notes
-    )
+    request = CompleteTaskRequest(task_id=str(task.id), completion_notes=completion_notes)
 
     # Execute use case (should succeed)
     result = use_case.execute(request)
@@ -453,10 +433,7 @@ def test_create_task_with_nonexistent_project():
 
     assert not result.is_success
     assert result.error.code == ErrorCode.NOT_FOUND
-    assert (
-        "Project with id 123e4567-e89b-12d3-a456-426614174000 not found"
-        in result.error.message
-    )
+    assert "Project with id 123e4567-e89b-12d3-a456-426614174000 not found" in result.error.message
 
 
 def test_create_task_fails_with_malformed_project_id():

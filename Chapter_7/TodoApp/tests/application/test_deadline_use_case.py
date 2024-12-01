@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from freezegun import freeze_time
 
@@ -16,7 +16,6 @@ from todo_app.domain.exceptions import (
     TaskNotFoundError,
 )
 from todo_app.domain.value_objects import Deadline
-
 
 
 def test_check_deadlines_empty_repository():
@@ -44,11 +43,13 @@ def test_check_deadlines_no_approaching_deadlines():
     task1 = Task(
         title="Future Task 1",
         description="Test",
+        project_id=uuid4(),
         due_date=Deadline(far_future_date),
     )
     task2 = Task(
         title="Future Task 2",
         description="Test",
+        project_id=uuid4(),
         due_date=Deadline(far_future_date + timedelta(days=1)),
     )
 
@@ -76,10 +77,14 @@ def test_check_deadlines_approaching_deadlines():
     task1 = Task(
         title="Approaching Task",
         description="Test",
+        project_id=uuid4(),
         due_date=Deadline(approaching_date),
     )
     task2 = Task(
-        title="Future Task", description="Test", due_date=Deadline(future_date)
+        title="Future Task",
+        description="Test",
+        project_id=uuid4(),
+        due_date=Deadline(future_date),
     )
 
     repo.save(task1)
@@ -90,12 +95,8 @@ def test_check_deadlines_approaching_deadlines():
     assert result.is_success
     assert result.value["notifications_sent"] == 1
     assert len(notifications.deadline_warnings) == 1
-    assert (
-        notifications.deadline_warnings[0][0] == task1.id
-    )  # First task should be warned
-    assert (
-        notifications.deadline_warnings[0][1] == 0
-    )  # Less than 1 day remaining
+    assert notifications.deadline_warnings[0][0] == task1.id  # First task should be warned
+    assert notifications.deadline_warnings[0][1] == 0  # Less than 1 day remaining
 
 
 @freeze_time("2024-01-01 12:00:00")
@@ -103,19 +104,19 @@ def test_check_deadlines_custom_threshold():
     """Test checking deadlines with a custom warning threshold."""
     repo = InMemoryTaskRepository()
     notifications = NotificationRecorder()
-    use_case = CheckDeadlinesUseCase(
-        repo, notifications, warning_threshold=timedelta(days=3)
-    )
+    use_case = CheckDeadlinesUseCase(repo, notifications, warning_threshold=timedelta(days=3))
 
     # Create tasks with various deadlines
     two_days = Task(
         title="Two Days Task",
         description="Test",
+        project_id=uuid4(),
         due_date=Deadline(datetime.now() + timedelta(days=2)),
     )
     four_days = Task(
         title="Four Days Task",
         description="Test",
+        project_id=uuid4(),
         due_date=Deadline(datetime.now() + timedelta(days=4)),
     )
 
@@ -143,6 +144,7 @@ def test_check_deadlines_completed_tasks():
     task = Task(
         title="Completed Task",
         description="Test",
+        project_id=uuid4(),
         due_date=Deadline(approaching_date),
     )
     task.complete()  # Mark as complete
@@ -169,6 +171,7 @@ def test_check_deadlines_multiple_notifications():
         task = Task(
             title=f"Task due in {hours} hours",
             description="Test",
+            project_id=uuid4(),
             due_date=Deadline(base_time + timedelta(hours=hours)),
         )
         tasks.append(task)
@@ -201,9 +204,7 @@ def test_check_deadlines_handles_repository_errors():
     assert not result.is_success
     assert result.error.code == ErrorCode.BUSINESS_RULE_VIOLATION
     assert "Repository error" in result.error.message
-    assert (
-        not notifications.deadline_warnings
-    )  # No notifications should be sent
+    assert not notifications.deadline_warnings  # No notifications should be sent
 
 
 @freeze_time("2024-01-01 12:00:00")
@@ -221,7 +222,10 @@ def test_check_deadlines_handles_notification_errors():
     # Create a task with approaching deadline
     due_date = datetime.now() + timedelta(hours=12)
     task = Task(
-        title="Test Task", description="Test", due_date=Deadline(due_date)
+        title="Test Task",
+        description="Test",
+        project_id=uuid4(),
+        due_date=Deadline(due_date),
     )
     repo.save(task)
 
@@ -238,9 +242,7 @@ def test_check_deadlines_handles_task_not_found():
 
     class TaskNotFoundRepository(InMemoryTaskRepository):
         def get_active_tasks(self):
-            raise TaskNotFoundError(
-                UUID("123e4567-e89b-12d3-a456-426614174000")
-            )
+            raise TaskNotFoundError(UUID("123e4567-e89b-12d3-a456-426614174000"))
 
     repo = TaskNotFoundRepository()
     notifications = NotificationRecorder()

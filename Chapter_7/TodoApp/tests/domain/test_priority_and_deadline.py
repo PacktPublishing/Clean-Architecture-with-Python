@@ -2,6 +2,7 @@
 """Tests for task priority calculation and deadline value object."""
 
 from datetime import datetime, timedelta
+from uuid import uuid4
 
 import pytest
 from freezegun import freeze_time
@@ -90,6 +91,7 @@ class TestTaskPriorityCalculator:
         task = Task(
             title="Test Task",
             description="Test Description",
+            project_id=uuid4(),
             due_date=Deadline(due_date),
         )
 
@@ -106,6 +108,7 @@ class TestTaskPriorityCalculator:
         task = Task(
             title="Test Task",
             description="Test Description",
+            project_id=uuid4(),
             due_date=Deadline(due_date),
         )
 
@@ -120,6 +123,7 @@ class TestTaskPriorityCalculator:
         task = Task(
             title="Test Task",
             description="Test Description",
+            project_id=uuid4(),
             due_date=Deadline(due_date),
         )
 
@@ -128,7 +132,11 @@ class TestTaskPriorityCalculator:
 
     def test_calculate_priority_no_deadline(self):
         """Test priority calculation for tasks without deadlines."""
-        task = Task(title="Test Task", description="Test Description")
+        task = Task(
+            title="Test Task",
+            description="Test Description",
+            project_id=uuid4(),
+        )
         expected_priority = task.priority
         priority = TaskPriorityCalculator.calculate_priority(task)
         assert priority == expected_priority
@@ -150,6 +158,7 @@ class TestTaskPriorityCalculator:
         task = Task(
             title="Test Task",
             description="Test Description",
+            project_id=uuid4(),
             due_date=Deadline(due_date),
         )
         priority = TaskPriorityCalculator.calculate_priority(task)

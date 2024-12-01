@@ -29,7 +29,7 @@ def sample_task_response():
         status=TaskStatus.IN_PROGRESS,
         priority=Priority.HIGH,
         due_date=datetime(2024, 1, 21, tzinfo=timezone.utc),
-        project_id=UUID("660e8400-e29b-41d4-a716-446655440000"),
+        project_id="660e8400-e29b-41d4-a716-446655440000",
         completion_date=None,
         completion_notes=None,
     )
@@ -53,6 +53,7 @@ def test_cli_task_presenter_handles_completed_task(task_presenter):
     completed_date = datetime(2024, 1, 20, tzinfo=timezone.utc)
     response = TaskResponse(
         id="123",
+        project_id="456",
         title="Test Task",
         description="Test Description",
         status=TaskStatus.DONE,
@@ -170,6 +171,7 @@ def test_cli_project_presenter_formats_project_with_mixed_tasks(project_presente
     """Test formatting of project with both completed and incomplete tasks."""
     completed_task = TaskResponse(
         id="123",
+        project_id="456",
         title="Done Task",
         description="Done",
         status=TaskStatus.DONE,
@@ -178,6 +180,7 @@ def test_cli_project_presenter_formats_project_with_mixed_tasks(project_presente
 
     in_progress_task = TaskResponse(
         id="456",
+        project_id="456",
         title="In Progress Task",
         description="Working",
         status=TaskStatus.IN_PROGRESS,
@@ -234,6 +237,7 @@ def test_cli_project_presenter_task_aggregation(project_presenter):
     tasks = [
         TaskResponse(  # Completed task
             id="123",
+            project_id="456",
             title="Done Task",
             description="Done",
             status=TaskStatus.DONE,
@@ -242,6 +246,7 @@ def test_cli_project_presenter_task_aggregation(project_presenter):
         ),
         TaskResponse(  # In progress task
             id="456",
+            project_id="789",
             title="Active Task",
             description="Doing",
             status=TaskStatus.IN_PROGRESS,
@@ -249,6 +254,7 @@ def test_cli_project_presenter_task_aggregation(project_presenter):
         ),
         TaskResponse(  # Todo task
             id="789",
+            project_id="012",
             title="Future Task",
             description="To do",
             status=TaskStatus.TODO,
@@ -308,6 +314,7 @@ def test_cli_task_presenter_formats_completed_task_with_notes(task_presenter):
     completion_date = datetime(2024, 1, 20, tzinfo=timezone.utc)
     task_response = TaskResponse(
         id="550e8400-e29b-41d4-a716-446655440000",
+        project_id="660e8400-e29b-41d4-a716-446655440000",
         title="Test Task",
         description="Test Description",
         status=TaskStatus.DONE,
@@ -341,6 +348,7 @@ def test_cli_task_presenter_formats_overdue_task(task_presenter):
     past_date = datetime(2023, 1, 1, tzinfo=timezone.utc)
     task_response = TaskResponse(
         id="550e8400-e29b-41d4-a716-446655440000",
+        project_id="660e8400-e29b-41d4-a716-446655440000",
         title="Overdue Task",
         description="This task is overdue",
         status=TaskStatus.TODO,
@@ -367,6 +375,7 @@ def test_presenters_handle_empty_strings(task_presenter, project_presenter):
     """Test presenters handle empty strings in various fields."""
     task_response = TaskResponse(
         id="550e8400-e29b-41d4-a716-446655440000",
+        project_id="660e8400-e29b-41d4-a716-446655440000",
         title="",  # Empty title
         description="",  # Empty description
         status=TaskStatus.TODO,
@@ -383,6 +392,7 @@ def test_presenters_handle_very_long_content(task_presenter):
     very_long_description = "A" * 1000
     task_response = TaskResponse(
         id="550e8400-e29b-41d4-a716-446655440000",
+        project_id="660e8400-e29b-41d4-a716-446655440000",
         title="Test Task",
         description=very_long_description,
         status=TaskStatus.TODO,

@@ -21,6 +21,7 @@ def mock_create_use_case():
                 TaskResponse(
                     id=str(uuid4()),
                     title=request.title,
+                    project_id=str(uuid4()),
                     description=request.description,
                     status=TaskStatus.TODO,
                     priority=Priority.MEDIUM,
@@ -43,6 +44,7 @@ def mock_complete_use_case():
                 TaskResponse(
                     id=request.task_id,
                     title="Test Task",
+                    project_id=str(uuid4()),
                     description="Description",
                     status=TaskStatus.DONE,
                     priority=Priority.MEDIUM,
