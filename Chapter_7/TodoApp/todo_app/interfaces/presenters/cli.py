@@ -36,10 +36,7 @@ class CliTaskPresenter(TaskPresenter):
 
         is_overdue = due_date < datetime.now(timezone.utc)
         date_str = due_date.strftime("%Y-%m-%d")
-
-        if is_overdue:
-            return f"OVERDUE - Due: {date_str}"
-        return f"Due: {date_str}"
+        return f"OVERDUE - Due: {date_str}" if is_overdue else f"Due: {date_str}"
 
     def _format_completion_info(
         self, completion_date: Optional[datetime], completion_notes: Optional[str]
@@ -53,9 +50,6 @@ class CliTaskPresenter(TaskPresenter):
             return f"{base_info} - {completion_notes}"
         return base_info
 
-    def present_error(self, error_msg: str, code: Optional[str] = None) -> ErrorViewModel:
-        return ErrorViewModel(message=error_msg, code=code)
-
     def _format_priority(self, priority: Priority) -> str:
         """Format priority for CLI display."""
         display_map = {
@@ -65,10 +59,22 @@ class CliTaskPresenter(TaskPresenter):
         }
         return display_map[priority]
 
+    def present_error(self, error_msg: str, code: Optional[str] = None) -> ErrorViewModel:
+        return ErrorViewModel(message=error_msg, code=code)
+
 
 class CliProjectPresenter(ProjectPresenter):
+    """CLI-specific project presenter."""
+
+    def __init__(self):
+        self.task_presenter = CliTaskPresenter()
 
     def present_project(self, project_response: ProjectResponse) -> ProjectViewModel:
+        """Format project for CLI display."""
+        # Convert tasks to view models
+        task_vms = [self.task_presenter.present_task(task) for task in project_response.tasks]
+
+        # Count completed tasks
         completed = sum(1 for task in project_response.tasks if task.status == TaskStatus.DONE)
 
         return ProjectViewModel(
@@ -79,6 +85,7 @@ class CliProjectPresenter(ProjectPresenter):
             task_count=len(project_response.tasks),
             completed_task_count=completed,
             completion_info=self._format_completion_info(project_response.completion_date),
+            tasks=task_vms,  # Include task view models in project view model
         )
 
     def present_completion(
@@ -93,15 +100,8 @@ class CliProjectPresenter(ProjectPresenter):
     def present_error(self, error_msg: str, code: Optional[str] = None) -> ErrorViewModel:
         return ErrorViewModel(message=error_msg, code=code)
 
-    def _format_completion_info(self, completion_date: Optional[datetime]) -> str:
+    def _format_completion_info(self, completion_date: Optional[datetime]) -> Optional[str]:
         """Format completion information for CLI display."""
         if completion_date:
             return f"Completed on {completion_date.strftime('%Y-%m-%d %H:%M')}"
-        return "Not completed"
-
-    def _format_task_summary(self, vm: ProjectViewModel) -> str:
-        """
-        CLI-specific formatting of task counts.
-        This would be used by CLI display code when it needs a formatted string.
-        """
-        return f"{vm.task_count} tasks ({vm.completed_task_count} completed)"
+        return None

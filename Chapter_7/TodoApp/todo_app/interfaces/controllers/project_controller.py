@@ -10,13 +10,17 @@ The project controller demonstrates:
 
 from dataclasses import dataclass
 from typing import Optional
+from uuid import UUID
 
+from todo_app.interfaces.view_models.project_vm import ProjectViewModel
 from todo_app.interfaces.presenters.base import ProjectPresenter
 from todo_app.interfaces.view_models.base import OperationResult
 from todo_app.application.dtos.project_dtos import CompleteProjectRequest, CreateProjectRequest
 from todo_app.application.use_cases.project_use_cases import (
     CompleteProjectUseCase,
     CreateProjectUseCase,
+    GetProjectUseCase,
+    ListProjectsUseCase,
 )
 
 
@@ -46,6 +50,8 @@ class ProjectController:
     create_use_case: CreateProjectUseCase
     complete_use_case: CompleteProjectUseCase
     presenter: ProjectPresenter
+    get_use_case: GetProjectUseCase
+    list_use_case: ListProjectsUseCase
 
     def handle_create(self, name: str, description: str = "") -> OperationResult:
         """
@@ -117,3 +123,49 @@ class ProjectController:
         except ValueError as e:
             error_vm = self.presenter.present_error(str(e), "VALIDATION_ERROR")
             return OperationResult.fail(error_vm.message, error_vm.code)
+
+    def handle_get(self, project_id: str) -> OperationResult[ProjectViewModel]:
+        """
+        Handle project retrieval requests.
+
+        Args:
+            project_id: The unique identifier of the project
+
+        Returns:
+            OperationResult containing either:
+            - Success: ProjectViewModel with project details
+            - Failure: Error information
+        """
+        try:
+            result = self.get_use_case.execute(project_id)
+
+            if result.is_success:
+                view_model = self.presenter.present_project(result.value)
+                return OperationResult.succeed(view_model)
+
+            error_vm = self.presenter.present_error(
+                result.error.message, str(result.error.code.name)
+            )
+            return OperationResult.fail(error_vm.message, error_vm.code)
+
+        except ValueError as e:
+            error_vm = self.presenter.present_error(str(e), "VALIDATION_ERROR")
+            return OperationResult.fail(error_vm.message, error_vm.code)
+
+    def handle_list(self) -> OperationResult[list[ProjectViewModel]]:
+        """
+        Handle project listing requests.
+
+        Returns:
+            OperationResult containing either:
+            - Success: List of ProjectViewModel objects
+            - Failure: Error information
+        """
+        result = self.list_use_case.execute()
+
+        if result.is_success:
+            view_models = [self.presenter.present_project(proj) for proj in result.value]
+            return OperationResult.succeed(view_models)
+
+        error_vm = self.presenter.present_error(result.error.message, str(result.error.code.name))
+        return OperationResult.fail(error_vm.message, error_vm.code)

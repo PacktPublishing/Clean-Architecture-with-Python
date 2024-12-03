@@ -28,6 +28,13 @@ class ProjectRepository(ABC):
         pass
 
     @abstractmethod
+    def get_all(self) -> list[Project]:
+        """
+        Retrieve all projects.
+        """
+        pass
+
+    @abstractmethod
     def save(self, project: Project) -> None:
         """
         Save a project to the repository.

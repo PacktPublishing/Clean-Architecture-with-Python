@@ -4,6 +4,7 @@ This module contains use cases for task operations.
 
 from copy import deepcopy
 from dataclasses import dataclass
+from uuid import UUID
 
 from todo_app.domain.entities.project import Project
 from todo_app.application.common.result import Result, Error
@@ -30,7 +31,7 @@ from todo_app.domain.exceptions import (
     ValidationError,
     BusinessRuleViolation,
 )
-from todo_app.domain.value_objects import Priority
+from todo_app.domain.value_objects import Priority, TaskStatus
 
 
 @dataclass
@@ -134,4 +135,69 @@ class SetTaskPriorityUseCase:
 
             return Result.success(TaskResponse.from_entity(task))
         except ValidationError as e:
+            return Result.failure(Error.validation_error(str(e)))
+
+
+@dataclass
+class GetTaskUseCase:
+    """Use case for retrieving task details."""
+
+    task_repository: TaskRepository
+
+    def execute(self, task_id: UUID) -> Result[TaskResponse]:
+        """
+        Get details for a specific task.
+
+        Args:
+            task_id: The unique identifier of the task
+
+        Returns:
+            Result containing either:
+            - Success: TaskResponse with task details
+            - Failure: Error information
+        """
+        try:
+            task = self.task_repository.get(task_id)
+            return Result.success(TaskResponse.from_entity(task))
+        except TaskNotFoundError:
+            return Result.failure(Error.not_found("Task", str(task_id)))
+
+
+@dataclass
+class UpdateTaskStatusUseCase:
+    """Use case for updating task status."""
+
+    task_repository: TaskRepository
+
+    def execute(self, task_id: UUID, status: TaskStatus) -> Result[TaskResponse]:
+        """
+        Update the status of a task.
+
+        Args:
+            task_id: The unique identifier of the task
+            status: The new status to set
+
+        Returns:
+            Result containing either:
+            - Success: TaskResponse with updated task details
+            - Failure: Error information
+        """
+        try:
+            task = self.task_repository.get(task_id)
+
+            # Handle status transitions
+            if status == TaskStatus.IN_PROGRESS:
+                task.start()
+            elif status == TaskStatus.DONE:
+                task.complete()
+            elif status == TaskStatus.TODO:
+                # Reset to TODO (this might need domain logic)
+                task.status = TaskStatus.TODO
+
+            self.task_repository.save(task)
+            return Result.success(TaskResponse.from_entity(task))
+
+        except TaskNotFoundError:
+            return Result.failure(Error.not_found("Task", str(task_id)))
+        except ValueError as e:
             return Result.failure(Error.validation_error(str(e)))

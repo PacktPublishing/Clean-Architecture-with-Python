@@ -6,86 +6,62 @@ This module serves as the composition root for the CLI interface,
 demonstrating how Clean Architecture allows for different interfaces
 to the same core application.
 """
-
-import sys
 import os
-from typing import Type
+import sys
 
-from todo_app.infrastructure.cli.simple_cli_app import SimpleCli
+
 from todo_app.infrastructure.cli.click_cli_app import ClickCli
-from todo_app.infrastructure.config.container import Application
-from todo_app.infrastructure.persistence.memory import (
-    InMemoryTaskRepository,
-    InMemoryProjectRepository,
-)
+from todo_app.infrastructure.configuration.container import create_application
 from todo_app.infrastructure.notifications.recorder import NotificationRecorder
 from todo_app.interfaces.presenters.cli import CliTaskPresenter, CliProjectPresenter
 
 
-def create_application() -> Application:
-    """
-    Create and configure the application container with all required dependencies.
-    This acts as our composition root where concrete implementations are selected.
-    """
-    return Application(
-        task_repository=InMemoryTaskRepository(),
-        project_repository=InMemoryProjectRepository(),
-        notification_service=NotificationRecorder(),
-        task_presenter=CliTaskPresenter(),
-        project_presenter=CliProjectPresenter()
-    )
-
-
-def get_cli_implementation(cli_type: str) -> Type:
+def get_cli_implementation(cli_type: str) -> type:
     """
     Factory function to get the appropriate CLI implementation.
-    This allows us to switch between different CLI frameworks while
-    maintaining the same core application logic.
+
+    Args:
+        cli_type: The type of CLI to use ('simple' or 'click')
+
+    Returns:
+        The CLI class to instantiate
     """
     cli_implementations = {
-        'simple': SimpleCli,
-        'click': ClickCli
+        # 'simple': SimpleCli,
+        "click": ClickCli
     }
-    return cli_implementations.get(cli_type, SimpleCli)
+    return cli_implementations.get(cli_type, ClickCli)
 
 
-def main(cli_type: str) -> int:
+def main() -> int:
     """
     Main entry point for the CLI application.
-    
-    Args:
-        cli_type: Optional CLI implementation to use ('simple' or 'click')
-                 If not specified, defaults to 'simple'
-    
+
     Returns:
         Exit code (0 for success, non-zero for errors)
     """
     try:
-        app = create_application()
+        # Get CLI type from environment variable, defaulting to 'click'
+        cli_type = os.getenv("TODO_CLI_TYPE", "click")
+
+        # Create application with dependencies
+        app = create_application(
+            notification_service=NotificationRecorder(),
+            task_presenter=CliTaskPresenter(),
+            project_presenter=CliProjectPresenter(),
+        )
+
+        # Create and run appropriate CLI implementation
         cli_class = get_cli_implementation(cli_type)
         cli = cli_class(app)
-        
-        # Handle different CLI types
-        if cli_type == 'simple':
-            # Get command and args from sys.argv, skipping script name
-            args = sys.argv[1:]
-            if not args:
-                print("Error: Command required for simple CLI", file=sys.stderr)
-                return 1
-            command = args[0]
-            # Convert remaining args to kwargs (assuming format: --key value)
-            kwargs = dict(zip(args[1::2], args[2::2]))
-            return cli.run(command, **kwargs)
-        else:
-            # Click CLI handles its own argument parsing
-            return cli.run()
-        
+        return cli.run()
+    except KeyboardInterrupt:
+        print("\nGoodbye!")
+        return 0
     except Exception as e:
         print(f"Error: {str(e)}", file=sys.stderr)
         return 1
 
 
 if __name__ == "__main__":
-    # Get CLI type from environment variable, defaulting to 'simple'
-    cli_type = os.environ.get('TODO_CLI_TYPE', 'simple')
-    sys.exit(main(cli_type))
+    sys.exit(main())

@@ -69,6 +69,7 @@ def mock_presenter():
                 completion_info=(
                     "Not completed" if not project_response.completion_date else "Completed"
                 ),
+                tasks=[],
             )
 
         def present_error(self, message, code):
@@ -78,11 +79,19 @@ def mock_presenter():
 
 
 @pytest.fixture
-def project_controller(mock_create_use_case, mock_complete_use_case, mock_presenter):
+def project_controller(
+    mock_create_use_case,
+    mock_complete_use_case,
+    mock_presenter,
+    mock_get_use_case,
+    mock_list_use_case,
+):
     return ProjectController(
         create_use_case=mock_create_use_case,
         complete_use_case=mock_complete_use_case,
         presenter=mock_presenter,
+        get_use_case=mock_get_use_case,
+        list_use_case=mock_list_use_case,
     )
 
 
