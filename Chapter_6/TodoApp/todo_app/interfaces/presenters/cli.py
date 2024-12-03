@@ -1,11 +1,9 @@
 from datetime import datetime, timezone
 from typing import Optional
-from todo_app.domain.value_objects import Priority, TaskStatus
+from todo_app.domain.value_objects import Priority
 from todo_app.interfaces.view_models.base import ErrorViewModel
-from todo_app.application.dtos.project_dtos import CompleteProjectResponse, ProjectResponse
-from todo_app.interfaces.view_models.project_vm import ProjectCompletionViewModel, ProjectViewModel
 from todo_app.application.dtos.task_dtos import TaskResponse
-from todo_app.interfaces.presenters.base import ProjectPresenter, TaskPresenter
+from todo_app.interfaces.presenters.base import TaskPresenter
 from todo_app.interfaces.view_models.task_vm import TaskViewModel
 
 

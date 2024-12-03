@@ -1,12 +1,9 @@
 import dataclasses
 from datetime import datetime, timezone
-from uuid import UUID
 import pytest
 
-from todo_app.domain.value_objects import ProjectStatus
 from todo_app.domain.value_objects import TaskStatus, Priority
 from todo_app.application.dtos.task_dtos import TaskResponse
-from todo_app.application.dtos.project_dtos import CompleteProjectResponse, ProjectResponse
 from todo_app.interfaces.presenters.cli import CliTaskPresenter
 
 
