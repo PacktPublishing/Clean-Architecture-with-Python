@@ -19,6 +19,11 @@ class ProjectStatus(Enum):
     COMPLETED = "COMPLETED"
 
 
+class ProjectType(Enum):
+    REGULAR = "REGULAR"
+    INBOX = "INBOX"
+
+
 class Priority(Enum):
     LOW = 1
     MEDIUM = 2
@@ -40,7 +45,5 @@ class Deadline:
     def time_remaining(self) -> timedelta:
         return max(timedelta(0), self.due_date - datetime.now())
 
-    def is_approaching(
-        self, warning_threshold: timedelta = timedelta(days=1)
-    ) -> bool:
+    def is_approaching(self, warning_threshold: timedelta = timedelta(days=1)) -> bool:
         return timedelta(0) < self.time_remaining() <= warning_threshold

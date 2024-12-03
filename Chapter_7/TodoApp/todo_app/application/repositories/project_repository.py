@@ -55,14 +55,6 @@ class ProjectRepository(ABC):
         pass
 
     @abstractmethod
-    def get_inbox(self, inbox_name: str) -> Project:
-        """
-        Retrieve the INBOX project.
-
-        Returns:
-            The INBOX Project entity
-
-        Raises:
-            ProjectNotFoundError: If INBOX doesn't exist
-        """
+    def get_inbox(self) -> Project:
+        """Get the INBOX project."""
         pass

@@ -90,9 +90,7 @@ class Application:
 
         self.get_project_use_case = GetProjectUseCase(self.project_repository)
 
-        self.list_projects_use_case = ListProjectsUseCase(
-            self.project_repository, self.task_repository
-        )
+        self.list_projects_use_case = ListProjectsUseCase(self.project_repository)
 
         # Wire up task controller
         self.task_controller = TaskController(

@@ -3,6 +3,7 @@ This module contains domain-specific exceptions for the todo application.
 These exceptions represent error conditions specific to the domain model.
 """
 
+from typing import Optional
 from uuid import UUID
 
 
@@ -23,7 +24,7 @@ class TaskNotFoundError(DomainError):
 class ProjectNotFoundError(DomainError):
     """Raised when attempting to access a project that doesn't exist."""
 
-    def __init__(self, project_id: UUID) -> None:
+    def __init__(self, project_id: Optional[UUID]) -> None:
         self.project_id = project_id
         super().__init__(f"Project with id {project_id} not found")
 

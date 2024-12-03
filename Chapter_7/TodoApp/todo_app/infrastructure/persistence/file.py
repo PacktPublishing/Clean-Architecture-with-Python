@@ -5,13 +5,13 @@ JSON file-based repository implementation.
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Sequence
+from typing import Any, Dict, List, Optional, Sequence
 from uuid import UUID
 
 from todo_app.domain.entities.task import Task
 from todo_app.domain.entities.project import Project
 from todo_app.domain.exceptions import TaskNotFoundError, ProjectNotFoundError, InboxNotFoundError
-from todo_app.domain.value_objects import TaskStatus, ProjectStatus, Priority, Deadline
+from todo_app.domain.value_objects import ProjectType, TaskStatus, ProjectStatus, Priority, Deadline
 from todo_app.application.repositories.task_repository import TaskRepository
 from todo_app.application.repositories.project_repository import ProjectRepository
 
@@ -134,6 +134,11 @@ class FileProjectRepository(ProjectRepository):
     def __init__(self, data_dir: Path):
         self.projects_file = data_dir / "projects.json"
         self._ensure_file_exists()
+        # Initialize INBOX if doesn't exist
+        inbox = self._fetch_inbox()
+        if not inbox:
+            inbox = Project.create_inbox()
+            self.save(inbox)
         self.task_repository = FileTaskRepository(data_dir)
 
     def _ensure_file_exists(self) -> None:
@@ -188,6 +193,10 @@ class FileProjectRepository(ProjectRepository):
                 return self._dict_to_project(project_data)
         raise ProjectNotFoundError(project_id)
 
+    def get_all(self) -> List[Project]:
+        """Get all projects."""
+        return [self._dict_to_project(p) for p in self._load_projects()]
+
     def save(self, project: Project) -> None:
         """Save a project and its tasks."""
         projects = self._load_projects()
@@ -220,10 +229,16 @@ class FileProjectRepository(ProjectRepository):
         projects = [p for p in projects if UUID(p["id"]) != project_id]
         self._save_projects(projects)
 
+    def _fetch_inbox(self) -> Optional[Project]:
+        """Is there an INBOX project"""
+        inbox = next(
+            (p for p in self._load_projects() if p["project_type"] == ProjectType.INBOX.name), None
+        )
+        return self._dict_to_project(inbox) if inbox else None
+
     def get_inbox(self, inbox_name: str) -> Project:
         """Get the INBOX project."""
-        projects = self._load_projects()
-        for project_data in projects:
-            if project_data["name"] == inbox_name:
-                return self._dict_to_project(project_data)
-        raise InboxNotFoundError()
+        inbox = self._fetch_inbox()
+        if not inbox:
+            raise InboxNotFoundError()
+        return inbox

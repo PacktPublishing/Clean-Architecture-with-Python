@@ -128,14 +128,11 @@ class GetProjectUseCase:
 
 @dataclass
 class ListProjectsUseCase:
-    """Use case for listing all projects."""
-
     project_repository: ProjectRepository
-    task_repository: TaskRepository
 
     def execute(self) -> Result[list[ProjectResponse]]:
         """
-        List all projects with their associated tasks.
+        List all projects.
 
         Returns:
             Result containing either:
@@ -143,25 +140,7 @@ class ListProjectsUseCase:
             - Failure: Error information
         """
         try:
-            # Get or create INBOX if it doesn't exist
-            try:
-                inbox = self.project_repository.get_inbox("INBOX")
-            except Exception:
-                inbox = None
-
-            # Get all tasks that aren't assigned to a project
-            if inbox:
-                unassigned_tasks = self.task_repository.find_by_project(inbox.id)
-                for task in unassigned_tasks:
-                    inbox.add_task(task)
-
-            projects = []
-
-            # Add inbox first if it exists
-            if inbox:
-                projects.append(ProjectResponse.from_entity(inbox))
-
-            return Result.success(projects)
-
+            projects = self.project_repository.get_all()
+            return Result.success([ProjectResponse.from_entity(p) for p in projects])
         except Exception as e:
             return Result.failure(Error.business_rule_violation(str(e)))

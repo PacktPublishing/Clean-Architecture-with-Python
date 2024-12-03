@@ -15,13 +15,13 @@ demonstrating how Clean Architecture enables swapping storage mechanisms while
 maintaining core functionality.
 """
 
-from typing import Dict, Sequence
+from typing import Dict, Optional, Sequence
 from uuid import UUID, uuid4
 
 from todo_app.domain.entities.task import Task
 from todo_app.domain.entities.project import Project
 from todo_app.domain.exceptions import InboxNotFoundError, TaskNotFoundError, ProjectNotFoundError
-from todo_app.domain.value_objects import TaskStatus
+from todo_app.domain.value_objects import ProjectType, TaskStatus
 from todo_app.application.repositories.task_repository import TaskRepository
 from todo_app.application.repositories.project_repository import ProjectRepository
 
@@ -76,6 +76,11 @@ class InMemoryProjectRepository(ProjectRepository):
 
     def __init__(self):
         self._projects: Dict[UUID, Project] = {}
+        # Initialize INBOX at repository creation
+        inbox = self._fetch_inbox()
+        if not inbox:
+            inbox = Project.create_inbox()
+            self.save(inbox)
 
     def get(self, project_id: UUID) -> Project:
         """Retrieve a project by ID or raise ProjectNotFoundError."""
@@ -95,8 +100,13 @@ class InMemoryProjectRepository(ProjectRepository):
         """Delete a project if it exists."""
         self._projects.pop(project_id, None)
 
-    def get_inbox(self, inbox_name: str) -> Project:
-        for project in self._projects.values():
-            if project.name == inbox_name:
-                return project
-        raise InboxNotFoundError()
+    def _fetch_inbox(self) -> Optional[Project]:
+        return next(
+            (p for p in self._projects.values() if p.project_type == ProjectType.INBOX), None
+        )
+
+    def get_inbox(self) -> Project:
+        inbox = self._fetch_inbox()
+        if not inbox:
+            raise InboxNotFoundError("The Inbox project was not found")
+        return inbox

@@ -27,22 +27,21 @@ class ClickCli:
     def _display_projects(self) -> None:
         """Display all projects and their tasks."""
         click.clear()
-        click.echo("\nProjects:")
+        click.echo("\nProjects: [type 'np' to create new project]")
 
-        # Get all projects including INBOX
-        projects = self.app.project_repository.get_all()
-        self.current_projects = projects  # Store for selection handling
+        result = self.app.project_controller.handle_list()
+        if not result.is_success:
+            click.secho(result.error.message, fg="red", err=True)
+            return
 
-        # Display each project with its tasks
-        for i, project in enumerate(projects, 1):
+        self.current_projects = result.success
+        for i, project in enumerate(self.current_projects, 1):
             click.echo(f"[{i}] Project: {project.name}")
-
-            # Display tasks for this project
             for j, task in enumerate(project.tasks):
-                task_letter = chr(97 + j)  # Convert 0 -> 'a', 1 -> 'b', etc.
-                status_str = f"[{task.status.name}]"
-                priority_str = f"[{task.priority.name}]"
-                click.echo(f"  [{task_letter}] {task.title} {status_str} {priority_str}")
+                task_letter = chr(97 + j)
+                click.echo(
+                    f"  [{task_letter}] {task.title} {task.status_display} {task.priority_display}"
+                )
 
     def _handle_selection(self) -> None:
         """Handle project/task selection."""
@@ -53,6 +52,10 @@ class ClickCli:
             .strip()
             .lower()
         )
+
+        if selection == "np":
+            self._create_new_project()
+            return
 
         try:
             if "." in selection:  # Task selection (e.g., "1.a")
@@ -75,7 +78,7 @@ class ClickCli:
 
         project = self.current_projects[project_num - 1]
         click.echo(f"\nProject: {project.name}")
-        click.echo(f"Status: {project.status.name}")
+        click.echo(f"Status: {project.status_display}")
         click.echo(f"Description: {project.description}")
         # Add project actions if needed
         click.pause()
@@ -96,10 +99,10 @@ class ClickCli:
         task = project.tasks[task_index]
         self._display_task_menu(task.id)
 
-    def _display_task_menu(self, task_id: UUID) -> None:
+    def _display_task_menu(self, task_id: str) -> None:
         """Display and handle task menu."""
         while True:
-            task = self.app.task_repository.get(task_id)
+            task = self.app.task_repository.get(UUID(task_id))
             click.clear()
             click.echo(f"\nTask: {task.title}")
             click.echo(f"Status: [{task.status.name}]")
@@ -133,7 +136,7 @@ class ClickCli:
             elif choice == "":  # Return to project list
                 break
 
-    def _update_task_priority(self, task_id: UUID) -> None:
+    def _update_task_priority(self, task_id: str) -> None:
         """Update task priority."""
         priorities = {"1": Priority.LOW, "2": Priority.MEDIUM, "3": Priority.HIGH}
 
@@ -149,11 +152,19 @@ class ClickCli:
             if not result.is_success:
                 click.secho(result.error.message, fg="red", err=True)
 
-    def _complete_task(self, task_id: UUID) -> None:
+    def _complete_task(self, task_id: str) -> None:
         """Complete a task."""
         notes = click.prompt("Completion notes (optional)", type=str, default="")
         result = self.app.task_controller.handle_complete(
             task_id=str(task_id), notes=notes if notes else None
         )
+        if not result.is_success:
+            click.secho(result.error.message, fg="red", err=True)
+
+    def _create_new_project(self) -> None:
+        name = click.prompt("Project name", type=str)
+        description = click.prompt("Description (optional)", type=str, default="")
+
+        result = self.app.project_controller.handle_create(name, description)
         if not result.is_success:
             click.secho(result.error.message, fg="red", err=True)

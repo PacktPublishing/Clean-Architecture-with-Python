@@ -8,6 +8,7 @@ from todo_app.domain.exceptions import BusinessRuleViolation
 from todo_app.domain.entities.entity import Entity
 from todo_app.domain.entities.task import Task
 from todo_app.domain.value_objects import (
+    ProjectType,
     TaskStatus,
     ProjectStatus,
 )
@@ -21,6 +22,7 @@ class Project(Entity):
 
     name: str
     description: str = ""
+    project_type: ProjectType = field(default=ProjectType.REGULAR)
     status: ProjectStatus = field(default=ProjectStatus.ACTIVE, init=False)
     completed_at: Optional[datetime] = field(default=None, init=False)
     completion_notes: Optional[str] = field(default=None, init=False)
@@ -36,13 +38,11 @@ class Project(Entity):
 
     @classmethod
     def create_inbox(cls) -> "Project":
-        """Creates the special INBOX project."""
-        return cls(name=cls.INBOX_NAME, description="Default project for unassigned tasks")
-
-    @property
-    def is_inbox(self) -> bool:
-        """Whether this project is the special INBOX project."""
-        return self.name == self.INBOX_NAME
+        return cls(
+            name="INBOX",
+            description="Default project for unassigned tasks",
+            project_type=ProjectType.INBOX,
+        )
 
     def add_task(self, task: Task) -> None:
         """Add a task to the project."""

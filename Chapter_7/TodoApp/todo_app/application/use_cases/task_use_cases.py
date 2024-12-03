@@ -4,9 +4,9 @@ This module contains use cases for task operations.
 
 from copy import deepcopy
 from dataclasses import dataclass
+from typing import Optional
 from uuid import UUID
 
-from todo_app.domain.entities.project import Project
 from todo_app.application.common.result import Result, Error
 from todo_app.application.dtos.task_dtos import (
     CompleteTaskRequest,
@@ -72,19 +72,18 @@ class CompleteTaskUseCase:
 
 @dataclass
 class CreateTaskUseCase:
-    """Use case for creating a new task."""
-
     task_repository: TaskRepository
     project_repository: ProjectRepository
 
     def execute(self, request: CreateTaskRequest) -> Result:
-        """Execute the use case."""
         try:
             params = request.to_execution_params()
-            # If no project specified, get or create INBOX
-            project_id = params.get("project_id") or self._get_or_create_inbox().id
-            # verify project exists
-            self.project_repository.get(project_id)
+            project_id = params.get("project_id")
+
+            if not project_id:
+                project_id = self.project_repository.get_inbox().id
+            else:
+                self.project_repository.get(project_id)  # Verify exists
 
             task = Task(
                 title=params["title"],
@@ -93,27 +92,15 @@ class CreateTaskUseCase:
                 due_date=params.get("deadline"),
                 priority=params.get("priority", Priority.MEDIUM),
             )
-
             self.task_repository.save(task)
-
             return Result.success(TaskResponse.from_entity(task))
 
         except ProjectNotFoundError:
-            return Result.failure(Error.not_found("Project", str(params.get("project_id"))))
+            return Result.failure(Error.not_found("Project", str(project_id)))
         except ValidationError as e:
             return Result.failure(Error.validation_error(str(e)))
         except BusinessRuleViolation as e:
             return Result.failure(Error.business_rule_violation(str(e)))
-
-    def _get_or_create_inbox(self) -> Project:
-        """Gets the INBOX project or creates it if it doesn't exist."""
-        try:
-            return self.project_repository.get_inbox(Project.INBOX_NAME)
-        except InboxNotFoundError:
-            # Create new INBOX if it doesn't exist
-            inbox = Project.create_inbox()
-            self.project_repository.save(inbox)
-            return inbox
 
 
 @dataclass
