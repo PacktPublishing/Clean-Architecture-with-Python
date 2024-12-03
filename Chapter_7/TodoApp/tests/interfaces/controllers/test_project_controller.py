@@ -1,4 +1,3 @@
-# tests/interfaces/controllers/test_project_controller.py
 from datetime import datetime, timezone
 from uuid import uuid4
 import pytest
@@ -76,6 +75,16 @@ def mock_presenter():
             return ErrorViewModel(message=message, code=code)
 
     return MockPresenter()
+
+
+@pytest.fixture
+def mock_get_use_case():
+    pass
+
+
+@pytest.fixture
+def mock_list_use_case():
+    pass
 
 
 @pytest.fixture

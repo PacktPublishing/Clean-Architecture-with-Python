@@ -13,6 +13,7 @@ def test_project_view_model_creation():
         task_count=5,
         completed_task_count=2,
         completion_info="Not completed",
+        tasks=[],
     )
 
     assert vm.id == "123"
@@ -34,6 +35,7 @@ def test_project_view_model_immutability():
         task_count=5,
         completed_task_count=2,
         completion_info="Not completed",
+        tasks=[],
     )
 
     with pytest.raises(dataclasses.FrozenInstanceError):

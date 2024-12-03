@@ -1,4 +1,3 @@
-# tests/interfaces/controllers/test_project_controller.py
 from datetime import datetime, timezone
 from uuid import uuid4
 import pytest
