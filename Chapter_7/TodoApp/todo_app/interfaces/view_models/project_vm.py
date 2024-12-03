@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import Optional
 
+from todo_app.interfaces.view_models.task_vm import TaskViewModel
+
 
 @dataclass(frozen=True)
 class ProjectViewModel:
@@ -13,6 +15,7 @@ class ProjectViewModel:
     task_count: int
     completed_task_count: int
     completion_info: Optional[str]
+    tasks: list[TaskViewModel]
 
 
 @dataclass(frozen=True)

@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Optional
 from todo_app.domain.value_objects import Priority, TaskStatus
 from todo_app.interfaces.view_models.base import ErrorViewModel
@@ -22,39 +22,33 @@ class CliTaskPresenter(TaskPresenter):
             priority_display=self._format_priority(task_response.priority),
             due_date_display=self._format_due_date(task_response.due_date),
             project_display=(
-                f"Project: {task_response.project_id}" if task_response.project_id else ""
+                f"Project: {task_response.project_id}" if task_response.project_id else None
             ),
             completion_info=self._format_completion_info(
                 task_response.completion_date, task_response.completion_notes
             ),
         )
 
-    def _format_due_date(self, due_date: Optional[datetime]) -> str:
+    def _format_due_date(self, due_date: Optional[datetime]) -> Optional[str]:
         """Format due date, indicating if task is overdue."""
         if not due_date:
-            return "No due date"
+            return None
 
-        is_overdue = due_date < datetime.now(timezone.utc)
+        is_overdue = due_date < datetime.now()
         date_str = due_date.strftime("%Y-%m-%d")
-
-        if is_overdue:
-            return f"OVERDUE - Due: {date_str}"
-        return f"Due: {date_str}"
+        return f"OVERDUE - Due: {date_str}" if is_overdue else f"Due: {date_str}"
 
     def _format_completion_info(
         self, completion_date: Optional[datetime], completion_notes: Optional[str]
-    ) -> str:
+    ) -> Optional[str]:
         """Format completion information including notes if present."""
         if not completion_date:
-            return "Not completed"
+            return None
 
         base_info = f"Completed on {completion_date.strftime('%Y-%m-%d %H:%M')}"
         if completion_notes:
             return f"{base_info} - {completion_notes}"
         return base_info
-
-    def present_error(self, error_msg: str, code: Optional[str] = None) -> ErrorViewModel:
-        return ErrorViewModel(message=error_msg, code=code)
 
     def _format_priority(self, priority: Priority) -> str:
         """Format priority for CLI display."""
@@ -65,10 +59,22 @@ class CliTaskPresenter(TaskPresenter):
         }
         return display_map[priority]
 
+    def present_error(self, error_msg: str, code: Optional[str] = None) -> ErrorViewModel:
+        return ErrorViewModel(message=error_msg, code=code)
+
 
 class CliProjectPresenter(ProjectPresenter):
+    """CLI-specific project presenter."""
+
+    def __init__(self):
+        self.task_presenter = CliTaskPresenter()
 
     def present_project(self, project_response: ProjectResponse) -> ProjectViewModel:
+        """Format project for CLI display."""
+        # Convert tasks to view models
+        task_vms = [self.task_presenter.present_task(task) for task in project_response.tasks]
+
+        # Count completed tasks
         completed = sum(1 for task in project_response.tasks if task.status == TaskStatus.DONE)
 
         return ProjectViewModel(
@@ -79,6 +85,7 @@ class CliProjectPresenter(ProjectPresenter):
             task_count=len(project_response.tasks),
             completed_task_count=completed,
             completion_info=self._format_completion_info(project_response.completion_date),
+            tasks=task_vms,  # Include task view models in project view model
         )
 
     def present_completion(
@@ -93,15 +100,8 @@ class CliProjectPresenter(ProjectPresenter):
     def present_error(self, error_msg: str, code: Optional[str] = None) -> ErrorViewModel:
         return ErrorViewModel(message=error_msg, code=code)
 
-    def _format_completion_info(self, completion_date: Optional[datetime]) -> str:
+    def _format_completion_info(self, completion_date: Optional[datetime]) -> Optional[str]:
         """Format completion information for CLI display."""
         if completion_date:
             return f"Completed on {completion_date.strftime('%Y-%m-%d %H:%M')}"
-        return "Not completed"
-
-    def _format_task_summary(self, vm: ProjectViewModel) -> str:
-        """
-        CLI-specific formatting of task counts.
-        This would be used by CLI display code when it needs a formatted string.
-        """
-        return f"{vm.task_count} tasks ({vm.completed_task_count} completed)"
+        return None

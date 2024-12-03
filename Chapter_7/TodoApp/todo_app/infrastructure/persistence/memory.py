@@ -83,6 +83,10 @@ class InMemoryProjectRepository(ProjectRepository):
             return project
         raise ProjectNotFoundError(project_id)
 
+    def get_all(self) -> list[Project]:
+        """Retrieve all projects."""
+        return list(self._projects.values())
+
     def save(self, project: Project) -> None:
         """Save or update a project."""
         self._projects[project.id] = project

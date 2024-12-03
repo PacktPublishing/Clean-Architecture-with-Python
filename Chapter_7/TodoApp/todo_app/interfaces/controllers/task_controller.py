@@ -17,12 +17,24 @@ Key Clean Architecture benefits demonstrated in these controllers:
 
 from dataclasses import dataclass
 from typing import Optional
+from uuid import UUID
 
+from todo_app.domain.value_objects import TaskStatus
 from todo_app.interfaces.presenters.base import TaskPresenter
 from todo_app.interfaces.view_models.task_vm import TaskViewModel
 from todo_app.interfaces.view_models.base import OperationResult
-from todo_app.application.dtos.task_dtos import CompleteTaskRequest, CreateTaskRequest
-from todo_app.application.use_cases.task_use_cases import CompleteTaskUseCase, CreateTaskUseCase
+from todo_app.application.dtos.task_dtos import (
+    CompleteTaskRequest,
+    CreateTaskRequest,
+    SetTaskPriorityRequest,
+)
+from todo_app.application.use_cases.task_use_cases import (
+    CompleteTaskUseCase,
+    CreateTaskUseCase,
+    GetTaskUseCase,
+    SetTaskPriorityUseCase,
+    UpdateTaskStatusUseCase,
+)
 
 
 @dataclass
@@ -48,6 +60,9 @@ class TaskController:
     """
 
     create_use_case: CreateTaskUseCase
+    get_use_case: GetTaskUseCase
+    update_status_use_case: UpdateTaskStatusUseCase
+    set_priority_use_case: SetTaskPriorityUseCase
     complete_use_case: CompleteTaskUseCase
     presenter: TaskPresenter
 
@@ -119,6 +134,95 @@ class TaskController:
         try:
             request = CompleteTaskRequest(task_id=task_id, completion_notes=notes)
             result = self.complete_use_case.execute(request)
+
+            if result.is_success:
+                view_model = self.presenter.present_task(result.value)
+                return OperationResult.succeed(view_model)
+
+            error_vm = self.presenter.present_error(
+                result.error.message, str(result.error.code.name)
+            )
+            return OperationResult.fail(error_vm.message, error_vm.code)
+
+        except ValueError as e:
+            error_vm = self.presenter.present_error(str(e), "VALIDATION_ERROR")
+            return OperationResult.fail(error_vm.message, error_vm.code)
+
+    def handle_get(self, task_id: str) -> OperationResult[TaskViewModel]:
+        """
+        Handle task retrieval requests.
+
+        Args:
+            task_id: The unique identifier of the task
+
+        Returns:
+            OperationResult containing either:
+            - Success: TaskViewModel with task details
+            - Failure: Error information
+        """
+        try:
+            result = self.get_use_case.execute(UUID(task_id))
+
+            if result.is_success:
+                view_model = self.presenter.present_task(result.value)
+                return OperationResult.succeed(view_model)
+
+            error_vm = self.presenter.present_error(
+                result.error.message, str(result.error.code.name)
+            )
+            return OperationResult.fail(error_vm.message, error_vm.code)
+
+        except ValueError as e:
+            error_vm = self.presenter.present_error(str(e), "VALIDATION_ERROR")
+            return OperationResult.fail(error_vm.message, error_vm.code)
+
+    def handle_update_status(
+        self, task_id: str, status: TaskStatus
+    ) -> OperationResult[TaskViewModel]:
+        """
+        Handle task status update requests.
+
+        Args:
+            task_id: The unique identifier of the task
+            status: The new status to set
+
+        Returns:
+            OperationResult containing either:
+            - Success: TaskViewModel with updated task details
+            - Failure: Error information
+        """
+        try:
+            result = self.update_status_use_case.execute(UUID(task_id), status)
+
+            if result.is_success:
+                view_model = self.presenter.present_task(result.value)
+                return OperationResult.succeed(view_model)
+
+            error_vm = self.presenter.present_error(
+                result.error.message, str(result.error.code.name)
+            )
+            return OperationResult.fail(error_vm.message, error_vm.code)
+
+        except ValueError as e:
+            error_vm = self.presenter.present_error(str(e), "VALIDATION_ERROR")
+            return OperationResult.fail(error_vm.message, error_vm.code)
+
+    def handle_set_priority(self, task_id: str, priority: str) -> OperationResult[TaskViewModel]:
+        """
+        Handle task priority update requests from any interface.
+
+        Args:
+            task_id: The unique identifier of the task
+            priority: The new priority value (HIGH, MEDIUM, or LOW)
+
+        Returns:
+            OperationResult containing either:
+            - Success: TaskViewModel with updated priority
+            - Failure: Error information formatted for the interface
+        """
+        try:
+            request = SetTaskPriorityRequest(task_id=task_id, priority=priority)
+            result = self.set_priority_use_case.execute(request)
 
             if result.is_success:
                 view_model = self.presenter.present_task(result.value)
