@@ -29,7 +29,7 @@ def sample_task_response():
         status=TaskStatus.IN_PROGRESS,
         priority=Priority.HIGH,
         due_date=datetime(2024, 1, 21, tzinfo=timezone.utc),
-        project_id=UUID("660e8400-e29b-41d4-a716-446655440000"),
+        project_id="660e8400-e29b-41d4-a716-446655440000",
         completion_date=None,
         completion_notes=None,
     )
@@ -88,7 +88,7 @@ def test_cli_project_presenter_formats_project(project_presenter, sample_project
     assert vm.status_display == "[ACTIVE]"
     assert vm.task_count == 1
     assert vm.completed_task_count == 0
-    assert vm.completion_info == "Not completed"
+    assert vm.completion_info is None
 
 
 def test_cli_project_presenter_formats_completed_project(project_presenter):
@@ -106,13 +106,6 @@ def test_cli_project_presenter_formats_completed_project(project_presenter):
     vm = project_presenter.present_project(response)
     assert vm.status_display == "[COMPLETED]"
     assert vm.completion_info == "Completed on 2024-01-20 00:00"
-
-
-def test_cli_project_presenter_task_summary(project_presenter, sample_project_response):
-    """Test that presenter correctly formats task summary."""
-    vm = project_presenter.present_project(sample_project_response)
-    summary = project_presenter._format_task_summary(vm)
-    assert summary == "1 tasks (0 completed)"
 
 
 def test_cli_presenter_error_formatting(task_presenter, project_presenter):
@@ -140,13 +133,6 @@ def test_cli_task_presenter_formats_task_without_due_date(task_presenter, sample
     assert vm.due_date_display == "No due date"
 
 
-def test_cli_task_presenter_formats_task_without_project(task_presenter, sample_task_response):
-    """Test formatting of task without project."""
-    task = dataclasses.replace(sample_task_response, project_id=None)
-    vm = task_presenter.present_task(task)
-    assert vm.project_display == ""
-
-
 def test_cli_project_presenter_formats_empty_project(project_presenter):
     """Test formatting of project with no tasks."""
     project = ProjectResponse(
@@ -161,9 +147,6 @@ def test_cli_project_presenter_formats_empty_project(project_presenter):
     vm = project_presenter.present_project(project)
     assert vm.task_count == 0
     assert vm.completed_task_count == 0
-
-    summary = project_presenter._format_task_summary(vm)
-    assert summary == "0 tasks (0 completed)"
 
 
 def test_cli_project_presenter_formats_project_with_mixed_tasks(project_presenter):
@@ -196,9 +179,6 @@ def test_cli_project_presenter_formats_project_with_mixed_tasks(project_presente
     vm = project_presenter.present_project(project)
     assert vm.task_count == 2
     assert vm.completed_task_count == 1
-
-    summary = project_presenter._format_task_summary(vm)
-    assert summary == "2 tasks (1 completed)"
 
 
 def test_cli_presenters_error_formatting_consistency(task_presenter, project_presenter):

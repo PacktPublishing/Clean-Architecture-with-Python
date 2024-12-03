@@ -69,6 +69,7 @@ def mock_presenter():
                 completion_info=(
                     "Not completed" if not project_response.completion_date else "Completed"
                 ),
+                tasks=[],
             )
 
         def present_error(self, message, code):

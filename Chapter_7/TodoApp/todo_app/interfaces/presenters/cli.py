@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from todo_app.domain.value_objects import Priority, TaskStatus
 from todo_app.interfaces.view_models.base import ErrorViewModel
@@ -22,28 +22,28 @@ class CliTaskPresenter(TaskPresenter):
             priority_display=self._format_priority(task_response.priority),
             due_date_display=self._format_due_date(task_response.due_date),
             project_display=(
-                f"Project: {task_response.project_id}" if task_response.project_id else None
+                f"Project: {task_response.project_id}" if task_response.project_id else ""
             ),
             completion_info=self._format_completion_info(
                 task_response.completion_date, task_response.completion_notes
             ),
         )
 
-    def _format_due_date(self, due_date: Optional[datetime]) -> Optional[str]:
+    def _format_due_date(self, due_date: Optional[datetime]) -> str:
         """Format due date, indicating if task is overdue."""
         if not due_date:
-            return None
+            return "No due date"
 
-        is_overdue = due_date < datetime.now()
+        is_overdue = due_date < datetime.now(timezone.utc)
         date_str = due_date.strftime("%Y-%m-%d")
         return f"OVERDUE - Due: {date_str}" if is_overdue else f"Due: {date_str}"
 
     def _format_completion_info(
         self, completion_date: Optional[datetime], completion_notes: Optional[str]
-    ) -> Optional[str]:
+    ) -> str:
         """Format completion information including notes if present."""
         if not completion_date:
-            return None
+            return "Not completed"
 
         base_info = f"Completed on {completion_date.strftime('%Y-%m-%d %H:%M')}"
         if completion_notes:

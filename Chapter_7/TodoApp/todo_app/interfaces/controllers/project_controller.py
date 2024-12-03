@@ -89,7 +89,7 @@ class ProjectController:
             error_vm = self.presenter.present_error(str(e), "VALIDATION_ERROR")
             return OperationResult.fail(error_vm.message, error_vm.code)
 
-    def handle_complete(self, project_id: UUID, notes: Optional[str] = None) -> OperationResult:
+    def handle_complete(self, project_id: str, notes: Optional[str] = None) -> OperationResult:
         """
         Handle project completion requests from any interface.
 
@@ -108,7 +108,7 @@ class ProjectController:
             - Failure: Error information formatted for the interface
         """
         try:
-            request = CompleteProjectRequest(project_id=str(project_id), completion_notes=notes)
+            request = CompleteProjectRequest(project_id=project_id, completion_notes=notes)
             result = self.complete_use_case.execute(request)
 
             if result.is_success:
