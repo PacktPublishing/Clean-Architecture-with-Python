@@ -88,7 +88,7 @@ def test_cli_project_presenter_formats_project(project_presenter, sample_project
     assert vm.status_display == "[ACTIVE]"
     assert vm.task_count == 1
     assert vm.completed_task_count == 0
-    assert vm.completion_info is None
+    assert vm.completion_info == "Not completed"
 
 
 def test_cli_project_presenter_formats_completed_project(project_presenter):

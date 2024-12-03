@@ -100,8 +100,8 @@ class CliProjectPresenter(ProjectPresenter):
     def present_error(self, error_msg: str, code: Optional[str] = None) -> ErrorViewModel:
         return ErrorViewModel(message=error_msg, code=code)
 
-    def _format_completion_info(self, completion_date: Optional[datetime]) -> Optional[str]:
+    def _format_completion_info(self, completion_date: Optional[datetime]) -> str:
         """Format completion information for CLI display."""
         if completion_date:
             return f"Completed on {completion_date.strftime('%Y-%m-%d %H:%M')}"
-        return None
+        return "Not completed"
