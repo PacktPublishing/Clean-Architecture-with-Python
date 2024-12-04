@@ -1,3 +1,20 @@
+"""
+This module contains controllers that implement the Interface Adapters layer of Clean Architecture.
+
+Controllers are responsible for:
+1. Accepting input from external sources (CLI, web, etc.)
+2. Converting that input into the format required by use cases
+3. Executing the appropriate use case
+4. Converting the result into a view model suitable for the interface
+5. Handling and formatting any errors that occur
+
+Key Clean Architecture benefits demonstrated in these controllers:
+- Dependency Rule is followed: controllers depend inward towards use cases
+- Separation of Concerns: controllers handle routing and data conversion only
+- Independence: business logic remains isolated in use cases
+- Flexibility: new interfaces can be added without changing use cases
+"""
+
 from dataclasses import dataclass
 from typing import Optional
 from uuid import UUID
