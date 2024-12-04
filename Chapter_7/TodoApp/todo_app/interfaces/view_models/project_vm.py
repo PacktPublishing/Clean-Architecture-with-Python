@@ -11,6 +11,7 @@ class ProjectViewModel:
     id: str
     name: str
     description: str
+    project_type: str
     status_display: str
     task_count: int
     completed_task_count: int

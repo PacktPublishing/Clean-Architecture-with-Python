@@ -1,10 +1,10 @@
 """
-Click-based CLI implementation.
+Enhanced Click-based CLI implementation with project actions.
 """
 
-from uuid import UUID
 import click
 
+from todo_app.interfaces.view_models.project_vm import ProjectViewModel
 from todo_app.infrastructure.configuration.container import Application
 from todo_app.domain.value_objects import Priority
 
@@ -12,7 +12,7 @@ from todo_app.domain.value_objects import Priority
 class ClickCli:
     def __init__(self, app: Application):
         self.app = app
-        self.current_projects = []  # Track current projects for selection
+        self.current_projects = []
 
     def run(self) -> int:
         """Entry point for running the Click CLI application"""
@@ -42,6 +42,113 @@ class ClickCli:
                 click.echo(
                     f"  [{task_letter}] {task.title} {task.status_display} {task.priority_display}"
                 )
+
+    def _handle_project_menu(self, project: ProjectViewModel) -> None:
+        """Handle project menu actions."""
+        while True:
+            # Get latest project data
+            result = self.app.project_controller.handle_get(project.id)
+            if not result.is_success:
+                click.secho(result.error.message, fg="red", err=True)
+                return
+            project = result.success
+
+            click.clear()
+            click.echo(f"\nProject: {project.name}")
+            click.echo(f"Status: {project.status_display}")
+            click.echo(f"Description: {project.description}")
+            click.echo(
+                f"\nTasks: {project.task_count} total, {project.completed_task_count} completed"
+            )
+
+            click.echo("\nActions:")
+            # Only show edit option for non-INBOX projects
+            if project.project_type != "INBOX":
+                click.echo("[1] Edit Project")
+                click.echo("[2] Add Task to Project")
+                click.echo("[3] Return to main menu")
+            else:
+                click.echo("[1] Add Task to Project")
+                click.echo("[2] Return to main menu")
+
+            if project.project_type != "INBOX":
+                choice = click.prompt("Select an action", type=str, default="3")
+                if choice == "1":
+                    self._edit_project(project)
+                elif choice == "2":
+                    self._add_task_to_project(project)
+                elif choice == "3":
+                    break
+            else:
+                choice = click.prompt("Select an action", type=str, default="2")
+                if choice == "1":
+                    self._add_task_to_project(project)
+                elif choice == "2":
+                    break
+
+    def _add_task_to_project(self, project: ProjectViewModel) -> None:
+        """Add a new task to the project."""
+        click.echo("\nAdd New Task")
+        title = click.prompt("Task title", type=str)
+        description = click.prompt("Description", type=str, default="")
+
+        # Priority selection
+        click.echo("\nPriority:")
+        click.echo("[1] Low")
+        click.echo("[2] Medium")
+        click.echo("[3] High")
+        priority_choice = click.prompt("Select priority", type=str, default="2")
+
+        priority_map = {"1": "LOW", "2": "MEDIUM", "3": "HIGH"}
+        priority = priority_map.get(priority_choice, "MEDIUM")
+
+        # Create the task
+        result = self.app.task_controller.handle_create(
+            title=title,
+            description=description,
+            project_id=project.id,
+            priority=priority,
+        )
+
+        if not result.is_success:
+            click.secho(result.error.message, fg="red", err=True)
+        else:
+            click.echo("Task created successfully!")
+            # Force a refresh of the projects list
+            refresh_result = self.app.project_controller.handle_list()
+            if refresh_result.is_success:
+                self.current_projects = refresh_result.success
+
+        click.pause()
+
+    def _edit_project(self, project: ProjectViewModel) -> None:
+        """Edit project details."""
+        click.echo("\nEdit Project")
+        click.echo("Leave blank to keep current value")
+        
+        current_name = project.name
+        current_description = project.description
+        
+        # Show current values and get new ones
+        click.echo(f"\nCurrent name: {current_name}")
+        new_name = click.prompt("New name", type=str, default="", show_default=False)
+        
+        click.echo(f"\nCurrent description: {current_description}")
+        new_description = click.prompt("New description", type=str, default="", show_default=False)
+        
+        # Only update if new values were provided
+        result = self.app.project_controller.handle_update(
+            project_id=project.id,
+            name=new_name if new_name else None,
+            description=new_description if new_description else None
+        )
+        
+        if result.is_success:
+            click.echo("Project updated successfully!")
+        else:
+            click.secho(result.error.message, fg="red", err=True)
+        
+        click.pause()
 
     def _handle_selection(self) -> None:
         """Handle project/task selection."""
@@ -77,11 +184,7 @@ class ClickCli:
             return
 
         project = self.current_projects[project_num - 1]
-        click.echo(f"\nProject: {project.name}")
-        click.echo(f"Status: {project.status_display}")
-        click.echo(f"Description: {project.description}")
-        # Add project actions if needed
-        click.pause()
+        self._handle_project_menu(project)
 
     def _handle_task_selection(self, project_num: int, task_letter: str) -> None:
         """Handle task selection."""
@@ -99,40 +202,72 @@ class ClickCli:
         task = project.tasks[task_index]
         self._display_task_menu(task.id)
 
+    def _create_new_project(self) -> None:
+        """Create a new project."""
+        name = click.prompt("Project name", type=str)
+        description = click.prompt("Description (optional)", type=str, default="")
+
+        result = self.app.project_controller.handle_create(name, description)
+        if not result.is_success:
+            click.secho(result.error.message, fg="red", err=True)
+
     def _display_task_menu(self, task_id: str) -> None:
         """Display and handle task menu."""
         while True:
-            task = self.app.task_repository.get(UUID(task_id))
+            result = self.app.task_controller.handle_get(task_id)
+            if not result.is_success:
+                click.secho(result.error.message, fg="red", err=True)
+                return
+
+            task = result.success
             click.clear()
-            click.echo(f"\nTask: {task.title}")
-            click.echo(f"Status: [{task.status.name}]")
-            click.echo(f"Priority: [{task.priority.name}]")
-            if task.due_date:
-                click.echo(f"Due Date: {task.due_date.due_date.strftime('%Y-%m-%d')}")
+            # Display task details in a clear format
+            click.echo("\nTASK DETAILS")
+            click.echo("=" * 40)
+            click.echo(f"Title:       {task.title}")
             click.echo(f"Description: {task.description}")
+            click.echo(f"Priority:    {task.priority_display}")
+            click.echo("=" * 40)
 
-            # Display task actions
-            actions = {
-                "1": "Edit status",
-                "2": "Edit priority",
-                "3": "Edit due date",
-                "4": "Edit description",
-                "5": "Move to project",
-                "6": "Complete task",
-                "7": "Delete task",
-            }
-
+            # Display simplified action menu
             click.echo("\nActions:")
-            for key, action in actions.items():
-                click.echo(f"[{key}] {action}")
+            click.echo("[1] Edit title")
+            click.echo("[2] Edit description")
+            click.echo("[3] Edit priority")
+            click.echo("[4] Complete task")
+            click.echo("[5] Delete task")
+            click.echo("[Enter] Return to main menu")
 
-            choice = click.prompt("Choose an action", type=str, show_default=False)
+            choice = click.prompt("Choose an action", type=str, default="")
 
-            if choice == "2":  # Edit priority
+            if choice == "1":  # Edit title
+                new_title = click.prompt("New title", type=str)
+                result = self.app.task_controller.handle_update(task_id, title=new_title)
+                if not result.is_success:
+                    click.secho(result.error.message, fg="red", err=True)
+                    click.pause()
+            elif choice == "2":  # Edit description
+                new_description = click.prompt("New description", type=str)
+                result = self.app.task_controller.handle_update(
+                    task_id, description=new_description
+                )
+                if not result.is_success:
+                    click.secho(result.error.message, fg="red", err=True)
+                    click.pause()
+            elif choice == "3":  # Edit priority
                 self._update_task_priority(task_id)
-            elif choice == "6":  # Complete task
-                self._complete_task(task_id)
                 break
+            elif choice == "4":  # Complete task
+                self._complete_task(task_id)
+            elif choice == "5":  # Delete task
+                if click.confirm("Are you sure you want to delete this task?"):
+                    result = self.app.task_controller.handle_delete(task_id)
+                    if result.is_success:
+                        click.echo("Task deleted successfully")
+                        break
+                    else:
+                        click.secho(result.error.message, fg="red", err=True)
+                        click.pause()
             elif choice == "":  # Return to project list
                 break
 
@@ -146,7 +281,7 @@ class ClickCli:
 
         choice = click.prompt("Select priority", type=str)
         if choice in priorities:
-            result = self.app.task_controller.handle_set_priority(
+            result = self.app.task_controller.handle_update(
                 task_id=str(task_id), priority=priorities[choice].name
             )
             if not result.is_success:
@@ -158,13 +293,5 @@ class ClickCli:
         result = self.app.task_controller.handle_complete(
             task_id=str(task_id), notes=notes if notes else None
         )
-        if not result.is_success:
-            click.secho(result.error.message, fg="red", err=True)
-
-    def _create_new_project(self) -> None:
-        name = click.prompt("Project name", type=str)
-        description = click.prompt("Description (optional)", type=str, default="")
-
-        result = self.app.project_controller.handle_create(name, description)
         if not result.is_success:
             click.secho(result.error.message, fg="red", err=True)

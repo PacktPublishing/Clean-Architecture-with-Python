@@ -13,13 +13,14 @@ from todo_app.application.use_cases.project_use_cases import (
     CreateProjectUseCase,
     GetProjectUseCase,
     ListProjectsUseCase,
+    UpdateProjectUseCase,
 )
 from todo_app.application.use_cases.task_use_cases import (
     CompleteTaskUseCase,
     CreateTaskUseCase,
+    DeleteTaskUseCase,
     GetTaskUseCase,
-    SetTaskPriorityUseCase,
-    UpdateTaskStatusUseCase,
+    UpdateTaskUseCase,
 )
 from todo_app.interfaces.controllers.project_controller import ProjectController
 from todo_app.interfaces.controllers.task_controller import TaskController
@@ -73,13 +74,7 @@ class Application:
             self.task_repository, self.notification_service
         )
 
-        self.set_task_priority_use_case = SetTaskPriorityUseCase(
-            self.task_repository, self.notification_service
-        )
-
         self.get_task_use_case = GetTaskUseCase(self.task_repository)
-
-        self.update_task_status_use_case = UpdateTaskStatusUseCase(self.task_repository)
 
         # Configure project use cases
         self.create_project_use_case = CreateProjectUseCase(self.project_repository)
@@ -92,13 +87,20 @@ class Application:
 
         self.list_projects_use_case = ListProjectsUseCase(self.project_repository)
 
+        self.delete_task_use_case = DeleteTaskUseCase(self.task_repository)
+        self.update_task_use_case = UpdateTaskUseCase(
+            self.task_repository, self.notification_service
+        )
+
+        self.update_project_use_case = UpdateProjectUseCase(self.project_repository)
+
         # Wire up task controller
         self.task_controller = TaskController(
             create_use_case=self.create_task_use_case,
             complete_use_case=self.complete_task_use_case,
-            set_priority_use_case=self.set_task_priority_use_case,
+            update_use_case=self.update_task_use_case,
+            delete_use_case=self.delete_task_use_case,
             get_use_case=self.get_task_use_case,
-            update_status_use_case=self.update_task_status_use_case,
             presenter=self.task_presenter,
         )
 
@@ -108,5 +110,6 @@ class Application:
             complete_use_case=self.complete_project_use_case,
             get_use_case=self.get_project_use_case,
             list_use_case=self.list_projects_use_case,
+            update_use_case=self.update_project_use_case,
             presenter=self.project_presenter,
         )

@@ -9,7 +9,7 @@ from typing import Optional, Sequence, Self
 from uuid import UUID
 
 from todo_app.domain.exceptions import BusinessRuleViolation
-from todo_app.domain.value_objects import ProjectStatus
+from todo_app.domain.value_objects import ProjectStatus, ProjectType
 from todo_app.application.dtos.task_dtos import TaskResponse
 from todo_app.domain.entities.project import Project
 
@@ -72,6 +72,7 @@ class ProjectResponse:
     name: str
     description: str
     status: ProjectStatus
+    project_type: ProjectType
     completion_date: Optional[datetime]
     tasks: Sequence[TaskResponse]
 
@@ -83,6 +84,7 @@ class ProjectResponse:
             name=project.name,
             description=project.description,
             status=project.status,
+            project_type=project.project_type,
             completion_date=project.completed_at if project.completed_at else None,
             tasks=[TaskResponse.from_entity(task) for task in project.tasks],
         )
@@ -110,3 +112,20 @@ class CompleteProjectResponse:
             task_count=len(project.tasks),
             completion_notes=project.completion_notes,
         )
+
+
+@dataclass
+class UpdateProjectRequest:
+    """Request data for updating a project."""
+
+    project_id: str
+    name: Optional[str] = None
+    description: Optional[str] = None
+
+    def to_execution_params(self) -> dict:
+        """Convert to execution parameters."""
+        return {
+            "project_id": UUID(self.project_id),
+            "name": self.name,
+            "description": self.description,
+        }

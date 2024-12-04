@@ -15,12 +15,13 @@ from uuid import UUID
 from todo_app.interfaces.view_models.project_vm import ProjectViewModel
 from todo_app.interfaces.presenters.base import ProjectPresenter
 from todo_app.interfaces.view_models.base import OperationResult
-from todo_app.application.dtos.project_dtos import CompleteProjectRequest, CreateProjectRequest
+from todo_app.application.dtos.project_dtos import CompleteProjectRequest, CreateProjectRequest, UpdateProjectRequest
 from todo_app.application.use_cases.project_use_cases import (
     CompleteProjectUseCase,
     CreateProjectUseCase,
     GetProjectUseCase,
     ListProjectsUseCase,
+    UpdateProjectUseCase,
 )
 
 
@@ -45,6 +46,7 @@ class ProjectController:
         create_use_case: Use case for creating projects
         complete_use_case: Use case for completing projects
         presenter: Handles formatting of project data for the interface
+        update_use_case: Use case for updating projects
     """
 
     create_use_case: CreateProjectUseCase
@@ -52,6 +54,7 @@ class ProjectController:
     presenter: ProjectPresenter
     get_use_case: GetProjectUseCase
     list_use_case: ListProjectsUseCase
+    update_use_case: UpdateProjectUseCase
 
     def handle_create(self, name: str, description: str = "") -> OperationResult:
         """
@@ -169,3 +172,43 @@ class ProjectController:
 
         error_vm = self.presenter.present_error(result.error.message, str(result.error.code.name))
         return OperationResult.fail(error_vm.message, error_vm.code)
+
+    def handle_update(
+        self, 
+        project_id: str, 
+        name: Optional[str] = None, 
+        description: Optional[str] = None
+    ) -> OperationResult:
+        """
+        Handle project update requests.
+
+        Args:
+            project_id: The unique identifier of the project
+            name: Optional new name for the project
+            description: Optional new description for the project
+
+        Returns:
+            OperationResult containing either:
+            - Success: Updated ProjectViewModel
+            - Failure: Error information
+        """
+        try:
+            request = UpdateProjectRequest(
+                project_id=project_id,
+                name=name,
+                description=description
+            )
+            result = self.update_use_case.execute(request)
+
+            if result.is_success:
+                view_model = self.presenter.present_project(result.value)
+                return OperationResult.succeed(view_model)
+
+            error_vm = self.presenter.present_error(
+                result.error.message, str(result.error.code.name)
+            )
+            return OperationResult.fail(error_vm.message, error_vm.code)
+
+        except ValueError as e:
+            error_vm = self.presenter.present_error(str(e), "VALIDATION_ERROR")
+            return OperationResult.fail(error_vm.message, error_vm.code)

@@ -142,3 +142,26 @@ class SetTaskPriorityRequest:
             "task_id": UUID(self.task_id),
             "priority": Priority[self.priority.upper()],
         }
+
+
+@dataclass(frozen=True)
+class UpdateTaskRequest:
+    """Request data for updating a task."""
+
+    task_id: str
+    title: Optional[str] = None
+    description: Optional[str] = None
+    status: Optional[TaskStatus] = None
+    priority: Optional[Priority] = None
+
+    def __post_init__(self) -> None:
+        """Validate request data"""
+        if not self.task_id.strip():
+            raise ValueError("Task ID is required")
+        if self.title is not None:
+            if not self.title.strip():
+                raise ValueError("Title cannot be empty")
+            if len(self.title) > 200:
+                raise ValueError("Title cannot exceed 200 characters")
+        if self.description is not None and len(self.description) > 2000:
+            raise ValueError("Description cannot exceed 2000 characters")

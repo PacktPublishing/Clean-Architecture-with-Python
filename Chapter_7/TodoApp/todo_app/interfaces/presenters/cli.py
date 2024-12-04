@@ -81,11 +81,12 @@ class CliProjectPresenter(ProjectPresenter):
             id=str(project_response.id),
             name=project_response.name,
             description=project_response.description,
+            project_type=project_response.project_type.name,
             status_display=f"[{project_response.status.name}]",
             task_count=len(project_response.tasks),
             completed_task_count=completed,
             completion_info=self._format_completion_info(project_response.completion_date),
-            tasks=task_vms,  # Include task view models in project view model
+            tasks=task_vms,
         )
 
     def present_completion(

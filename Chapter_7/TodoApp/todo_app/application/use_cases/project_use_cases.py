@@ -6,12 +6,14 @@ from copy import deepcopy
 from dataclasses import dataclass
 from uuid import UUID
 
+from todo_app.domain.value_objects import ProjectType
 from todo_app.application.common.result import Result, Error
 from todo_app.application.dtos.project_dtos import (
     CreateProjectRequest,
     ProjectResponse,
     CompleteProjectRequest,
     CompleteProjectResponse,
+    UpdateProjectRequest,
 )
 from todo_app.application.ports.notifications import (
     NotificationPort,
@@ -143,4 +145,38 @@ class ListProjectsUseCase:
             projects = self.project_repository.get_all()
             return Result.success([ProjectResponse.from_entity(p) for p in projects])
         except Exception as e:
+            return Result.failure(Error.business_rule_violation(str(e)))
+
+
+@dataclass
+class UpdateProjectUseCase:
+    """Use case for updating a project."""
+
+    project_repository: ProjectRepository
+
+    def execute(self, request: UpdateProjectRequest) -> Result:
+        """Execute the use case."""
+        try:
+            params = request.to_execution_params()
+            project = self.project_repository.get(params["project_id"])
+
+            # Prevent editing of INBOX project
+            if project.project_type == ProjectType.INBOX:
+                return Result.failure(
+                    Error.business_rule_violation("The INBOX project cannot be modified")
+                )
+
+            if params["name"] is not None:
+                project.name = params["name"]
+            if params["description"] is not None:
+                project.description = params["description"]
+
+            self.project_repository.save(project)
+            return Result.success(ProjectResponse.from_entity(project))
+
+        except ProjectNotFoundError:
+            return Result.failure(Error.not_found("Project", str(params["project_id"])))
+        except ValidationError as e:
+            return Result.failure(Error.validation_error(str(e)))
+        except BusinessRuleViolation as e:
             return Result.failure(Error.business_rule_violation(str(e)))

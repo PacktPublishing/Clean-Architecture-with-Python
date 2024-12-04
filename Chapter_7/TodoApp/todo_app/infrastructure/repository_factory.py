@@ -31,5 +31,9 @@ def create_repositories() -> Tuple[TaskRepository, ProjectRepository]:
         data_dir = Config.get_data_directory()
         return FileTaskRepository(data_dir), FileProjectRepository(data_dir)
 
-    # Default to memory repositories
-    return InMemoryTaskRepository(), InMemoryProjectRepository()
+    # Memory repositories
+    task_repo = InMemoryTaskRepository()
+    project_repo = InMemoryProjectRepository()
+    # Connect the repositories
+    project_repo.set_task_repository(task_repo)
+    return task_repo, project_repo

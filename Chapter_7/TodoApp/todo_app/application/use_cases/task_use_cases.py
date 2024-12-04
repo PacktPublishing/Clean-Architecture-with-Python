@@ -4,7 +4,6 @@ This module contains use cases for task operations.
 
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Optional
 from uuid import UUID
 
 from todo_app.application.common.result import Result, Error
@@ -12,7 +11,7 @@ from todo_app.application.dtos.task_dtos import (
     CompleteTaskRequest,
     CreateTaskRequest,
     TaskResponse,
-    SetTaskPriorityRequest,
+    UpdateTaskRequest,
 )
 from todo_app.application.ports.notifications import (
     NotificationPort,
@@ -25,13 +24,12 @@ from todo_app.application.repositories.task_repository import (
 )
 from todo_app.domain.entities.task import Task
 from todo_app.domain.exceptions import (
-    InboxNotFoundError,
     TaskNotFoundError,
     ProjectNotFoundError,
     ValidationError,
     BusinessRuleViolation,
 )
-from todo_app.domain.value_objects import Priority, TaskStatus
+from todo_app.domain.value_objects import Priority
 
 
 @dataclass
@@ -104,28 +102,6 @@ class CreateTaskUseCase:
 
 
 @dataclass
-class SetTaskPriorityUseCase:
-    task_repository: TaskRepository
-    notification_service: NotificationPort  # Depends on capability interface
-
-    def execute(self, request: SetTaskPriorityRequest) -> Result:
-        try:
-            params = request.to_execution_params()
-
-            task = self.task_repository.get(params["task_id"])
-            task.priority = params["priority"]
-
-            self.task_repository.save(task)
-
-            if task.priority == Priority.HIGH:
-                self.notification_service.notify_task_high_priority(task.id)
-
-            return Result.success(TaskResponse.from_entity(task))
-        except ValidationError as e:
-            return Result.failure(Error.validation_error(str(e)))
-
-
-@dataclass
 class GetTaskUseCase:
     """Use case for retrieving task details."""
 
@@ -151,40 +127,49 @@ class GetTaskUseCase:
 
 
 @dataclass
-class UpdateTaskStatusUseCase:
-    """Use case for updating task status."""
+class UpdateTaskUseCase:
+    """Use case for updating task details."""
 
     task_repository: TaskRepository
+    notification_service: NotificationPort
 
-    def execute(self, task_id: UUID, status: TaskStatus) -> Result[TaskResponse]:
-        """
-        Update the status of a task.
-
-        Args:
-            task_id: The unique identifier of the task
-            status: The new status to set
-
-        Returns:
-            Result containing either:
-            - Success: TaskResponse with updated task details
-            - Failure: Error information
-        """
+    def execute(self, request: UpdateTaskRequest) -> Result[TaskResponse]:
         try:
-            task = self.task_repository.get(task_id)
+            task = self.task_repository.get(UUID(request.task_id))
 
-            # Handle status transitions
-            if status == TaskStatus.IN_PROGRESS:
-                task.start()
-            elif status == TaskStatus.DONE:
-                task.complete()
-            elif status == TaskStatus.TODO:
-                # Reset to TODO (this might need domain logic)
-                task.status = TaskStatus.TODO
+            if request.title is not None:
+                task.title = request.title.strip()
+            if request.description is not None:
+                task.description = request.description.strip()
+            if request.status is not None:
+                task.status = request.status
+            if request.priority is not None:
+                task.priority = request.priority
+                if task.priority == Priority.HIGH:
+                    self.notification_service.notify_task_high_priority(task.id)
 
             self.task_repository.save(task)
             return Result.success(TaskResponse.from_entity(task))
 
         except TaskNotFoundError:
-            return Result.failure(Error.not_found("Task", str(task_id)))
-        except ValueError as e:
+            return Result.failure(Error.not_found("Task", request.task_id))
+        except ValidationError as e:
             return Result.failure(Error.validation_error(str(e)))
+        except BusinessRuleViolation as e:
+            return Result.failure(Error.business_rule_violation(str(e)))
+
+
+@dataclass
+class DeleteTaskUseCase:
+    """Use case for deleting a task."""
+
+    task_repository: TaskRepository
+
+    def execute(self, task_id: UUID) -> Result[None]:
+        try:
+            # Verify task exists before deletion
+            self.task_repository.get(task_id)
+            self.task_repository.delete(task_id)
+            return Result.success(None)
+        except TaskNotFoundError:
+            return Result.failure(Error.not_found("Task", str(task_id)))
