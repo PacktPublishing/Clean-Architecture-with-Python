@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from uuid import uuid4
 import pytest
 
-from todo_app.domain.value_objects import ProjectStatus
+from todo_app.domain.value_objects import ProjectStatus, ProjectType
 from todo_app.application.dtos.project_dtos import ProjectResponse, CompleteProjectResponse
 from todo_app.application.common.result import Result, Error, ErrorCode
 from todo_app.interfaces.controllers.project_controller import ProjectController
@@ -23,6 +23,7 @@ def mock_create_use_case():
                     id=str(uuid4()),
                     name=request.name,
                     description=request.description,
+                    project_type=ProjectType.REGULAR,
                     status=ProjectStatus.ACTIVE,
                     completion_date=None,
                     tasks=[],
@@ -45,6 +46,7 @@ def mock_complete_use_case():
                     id=request.project_id,
                     name="Test Project",
                     description="Description",
+                    project_type=ProjectType.REGULAR,
                     status=ProjectStatus.COMPLETED,
                     completion_date=datetime.now(timezone.utc),
                     tasks=[],
@@ -62,6 +64,7 @@ def mock_presenter():
                 id=project_response.id,
                 name=project_response.name,
                 description=project_response.description,
+                project_type=project_response.project_type,
                 status_display=f"[{project_response.status.name}]",
                 task_count=len(project_response.tasks),
                 completed_task_count=0,
@@ -88,12 +91,18 @@ def mock_list_use_case():
 
 
 @pytest.fixture
+def mock_update_use_case():
+    pass
+
+
+@pytest.fixture
 def project_controller(
     mock_create_use_case,
     mock_complete_use_case,
     mock_presenter,
     mock_get_use_case,
     mock_list_use_case,
+    mock_update_use_case,
 ):
     return ProjectController(
         create_use_case=mock_create_use_case,
@@ -101,6 +110,7 @@ def project_controller(
         presenter=mock_presenter,
         get_use_case=mock_get_use_case,
         list_use_case=mock_list_use_case,
+        update_use_case=mock_update_use_case,
     )
 
 

@@ -125,29 +125,29 @@ class ClickCli:
         """Edit project details."""
         click.echo("\nEdit Project")
         click.echo("Leave blank to keep current value")
-        
+
         current_name = project.name
         current_description = project.description
-        
+
         # Show current values and get new ones
         click.echo(f"\nCurrent name: {current_name}")
         new_name = click.prompt("New name", type=str, default="", show_default=False)
-        
+
         click.echo(f"\nCurrent description: {current_description}")
         new_description = click.prompt("New description", type=str, default="", show_default=False)
-        
+
         # Only update if new values were provided
         result = self.app.project_controller.handle_update(
             project_id=project.id,
             name=new_name if new_name else None,
-            description=new_description if new_description else None
+            description=new_description if new_description else None,
         )
-        
+
         if result.is_success:
             click.echo("Project updated successfully!")
         else:
             click.secho(result.error.message, fg="red", err=True)
-        
+
         click.pause()
 
     def _handle_selection(self) -> None:
@@ -226,7 +226,10 @@ class ClickCli:
             click.echo("=" * 40)
             click.echo(f"Title:       {task.title}")
             click.echo(f"Description: {task.description}")
+            click.echo(f"Status:      {task.status_display}")
             click.echo(f"Priority:    {task.priority_display}")
+            if task.completion_info:
+                click.echo(f"Completion:  {task.completion_info}")
             click.echo("=" * 40)
 
             # Display simplified action menu

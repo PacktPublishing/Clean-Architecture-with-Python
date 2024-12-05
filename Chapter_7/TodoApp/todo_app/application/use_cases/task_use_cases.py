@@ -6,6 +6,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from uuid import UUID
 
+from todo_app.application.dtos.operations import DeletionOutcome
 from todo_app.application.common.result import Result, Error
 from todo_app.application.dtos.task_dtos import (
     CompleteTaskRequest,
@@ -165,11 +166,19 @@ class DeleteTaskUseCase:
 
     task_repository: TaskRepository
 
-    def execute(self, task_id: UUID) -> Result[None]:
+    def execute(self, task_id: UUID) -> Result[DeletionOutcome]:
+        """Execute the use case.
+
+        Args:
+            task_id: The unique identifier of the task to delete
+
+        Returns:
+            Result containing DeletionResult if successful
+        """
         try:
             # Verify task exists before deletion
             self.task_repository.get(task_id)
             self.task_repository.delete(task_id)
-            return Result.success(None)
+            return Result.success(DeletionOutcome(task_id))
         except TaskNotFoundError:
             return Result.failure(Error.not_found("Task", str(task_id)))

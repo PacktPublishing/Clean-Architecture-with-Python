@@ -20,7 +20,6 @@ from todo_app.application.dtos.task_dtos import (
 from todo_app.application.use_cases.task_use_cases import (
     CreateTaskUseCase,
     CompleteTaskUseCase,
-    SetTaskPriorityUseCase,
 )
 from todo_app.domain.entities.project import Project
 from todo_app.domain.entities.task import Task
@@ -140,44 +139,6 @@ def test_complete_nonexistent_task():
     assert not result.is_success
     assert result.error.code.value == "NOT_FOUND"
     assert not notifications.completed_tasks  # No notification sent
-
-
-def test_set_task_priority():
-    """Test setting a task's priority."""
-    # Arrange
-    repo = InMemoryTaskRepository()
-    notifications = NotificationRecorder()
-    use_case = SetTaskPriorityUseCase(repo, notifications)
-
-    # Create and save a task
-    task = Task(title="Test Task", description="Test Description", project_id=uuid4())
-    repo.save(task)
-
-    request = SetTaskPriorityRequest(task_id=str(task.id), priority="HIGH")
-
-    # Act
-    result = use_case.execute(request)
-
-    # Assert
-    assert result.is_success
-    assert result.value.priority == Priority.HIGH
-    assert task.id in notifications.high_priority_tasks
-
-
-def test_set_task_invalid_priority():
-    """Test setting an invalid priority."""
-    # Arrange
-    repo = InMemoryTaskRepository()
-    notifications = NotificationRecorder()
-    use_case = SetTaskPriorityUseCase(repo, notifications)
-
-    task = Task(title="Test Task", description="Test Description", project_id=uuid4())
-    repo.save(task)
-
-    with pytest.raises(ValueError) as exc_info:
-        SetTaskPriorityRequest(task_id=str(task.id), priority="INVALID")
-
-    assert "Priority must be one of" in str(exc_info.value)
 
 
 def test_complete_task_handles_validation_error():
@@ -458,27 +419,3 @@ def test_set_task_priority_fails_with_malformed_task_id():
             task_id="malformed project id",
             priority="HIGH",
         )
-
-
-def test_set_task_priority_handles_validation_error():
-    """Test handling of ValidationError during priority setting."""
-    # Create a task
-    task = Task(title="Test Task", description="Test Description", project_id=uuid4())
-
-    class ValidationErrorTaskRepository(InMemoryTaskRepository):
-        def save(self, task):
-            raise ValidationError("Invalid priority state")
-
-    repo = ValidationErrorTaskRepository()
-    repo._tasks[task.id] = task  # Add task directly to repo
-    notifications = NotificationRecorder()
-
-    use_case = SetTaskPriorityUseCase(repo, notifications)
-    request = SetTaskPriorityRequest(task_id=str(task.id), priority="HIGH")
-
-    result = use_case.execute(request)
-
-    assert not result.is_success
-    assert result.error.code == ErrorCode.VALIDATION_ERROR
-    assert "Invalid priority state" in result.error.message
-    assert not notifications.high_priority_tasks

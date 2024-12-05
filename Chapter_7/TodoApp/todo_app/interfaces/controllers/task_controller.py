@@ -18,6 +18,7 @@ Key Clean Architecture benefits demonstrated in these controllers:
 from dataclasses import dataclass
 from typing import Optional
 from uuid import UUID
+from todo_app.application.dtos.operations import DeletionOutcome
 from todo_app.domain.value_objects import Priority
 from todo_app.application.dtos.task_dtos import CompleteTaskRequest, CreateTaskRequest
 from todo_app.application.use_cases.task_use_cases import CompleteTaskUseCase, CreateTaskUseCase
@@ -142,7 +143,7 @@ class TaskController:
             error_vm = self.presenter.present_error(str(e), "VALIDATION_ERROR")
             return OperationResult.fail(error_vm.message, error_vm.code)
 
-    def handle_delete(self, task_id: str) -> OperationResult[bool]:
+    def handle_delete(self, task_id: str) -> OperationResult[DeletionOutcome]:
         """
         Handle task deletion requests from any interface.
 
@@ -151,13 +152,13 @@ class TaskController:
 
         Returns:
             OperationResult containing either:
-            - Success: True if deletion was successful
+            - Success: DeletionResult with details of the deleted task
             - Failure: Error information formatted for the interface
         """
         try:
             result = self.delete_use_case.execute(UUID(task_id))
             if result.is_success:
-                return OperationResult.succeed(True)
+                return OperationResult.succeed(result.value)
 
             error_vm = self.presenter.present_error(
                 result.error.message, str(result.error.code.name)

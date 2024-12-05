@@ -1,5 +1,6 @@
 import dataclasses
 import pytest
+from todo_app.domain.value_objects import ProjectType
 from todo_app.interfaces.view_models.project_vm import ProjectViewModel
 
 
@@ -8,6 +9,7 @@ def test_project_view_model_creation():
     vm = ProjectViewModel(
         id="123",
         name="Test Project",
+        project_type=ProjectType.REGULAR.value,
         description="Test Description",
         status_display="[ACTIVE]",
         task_count=5,
@@ -30,6 +32,7 @@ def test_project_view_model_immutability():
     vm = ProjectViewModel(
         id="123",
         name="Test Project",
+        project_type=ProjectType.REGULAR.value,
         description="Test Description",
         status_display="[ACTIVE]",
         task_count=5,

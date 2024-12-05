@@ -83,12 +83,12 @@ def mock_get_use_case():
 
 
 @pytest.fixture
-def mock_update_status_use_case():
+def mock_update_use_case():
     pass
 
 
 @pytest.fixture
-def mock_set_priority_use_case():
+def mock_delete_use_case():
     pass
 
 
@@ -98,16 +98,16 @@ def task_controller(
     mock_complete_use_case,
     mock_presenter,
     mock_get_use_case,
-    mock_update_status_use_case,
-    mock_set_priority_use_case,
+    mock_update_use_case,
+    mock_delete_use_case,
 ):
     return TaskController(
         create_use_case=mock_create_use_case,
         complete_use_case=mock_complete_use_case,  # Make sure we're using the mock
         presenter=mock_presenter,
         get_use_case=mock_get_use_case,
-        update_status_use_case=mock_update_status_use_case,
-        set_priority_use_case=mock_set_priority_use_case,
+        update_use_case=mock_update_use_case,
+        delete_use_case=mock_delete_use_case,
     )
 
 

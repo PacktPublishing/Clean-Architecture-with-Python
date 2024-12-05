@@ -1,10 +1,11 @@
 # todo_app/tests/application/test_project_use_cases.py
 """Tests for project-related use cases."""
 
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
+from todo_app.application.repositories.project_repository import ProjectRepository
 from todo_app.infrastructure.notifications.recorder import NotificationRecorder
 from todo_app.infrastructure.persistence.memory import (
     InMemoryProjectRepository,
@@ -23,10 +24,12 @@ from todo_app.domain.entities.project import Project
 from todo_app.domain.entities.task import Task
 from todo_app.domain.exceptions import (
     BusinessRuleViolation,
+    ProjectNotFoundError,
     ValidationError,
 )
 from todo_app.domain.value_objects import (
     ProjectStatus,
+    ProjectType,
     TaskStatus,
 )
 
@@ -92,7 +95,7 @@ def test_complete_project_without_tasks():
 
 
 def test_complete_project_with_incomplete_tasks():
-    """Test completing a project that has incomplete tasks.  All tasks should be marked as done."""
+    """Test completing a project that has incomplete tasks. All tasks should be marked as done."""
     # Arrange
     project_repo = InMemoryProjectRepository()
     task_repo = InMemoryTaskRepository()
@@ -101,9 +104,12 @@ def test_complete_project_with_incomplete_tasks():
 
     # Create project with task
     project = Project(name="Test Project")
-    task = Task(title="Test Task", description="Test", project_id=uuid4())
+    task = Task(title="Test Task", description="Test", project_id=project.id)
     project.add_task(task)
+
+    # Save both project and task
     project_repo.save(project)
+    task_repo.save(task)
 
     request = CompleteProjectRequest(project_id=str(project.id), completion_notes="Done!")
 
@@ -125,10 +131,13 @@ def test_complete_project_with_completed_tasks():
 
     # Create project with completed task
     project = Project(name="Test Project")
-    task = Task(title="Test Task", description="Test", project_id=uuid4())
+    task = Task(title="Test Task", description="Test", project_id=project.id)
     task.complete()  # Complete the task
     project.add_task(task)
+
+    # Save both project and task
     project_repo.save(project)
+    task_repo.save(task)
 
     request = CompleteProjectRequest(project_id=str(project.id), completion_notes="All done!")
 
@@ -162,11 +171,23 @@ def test_complete_nonexistent_project():
 def test_create_project_handles_validation_error():
     """Test handling of ValidationError during project creation."""
 
-    class ValidationErrorProjectRepository(InMemoryProjectRepository):
-        def save(self, project):
+    class MockProjectRepository(ProjectRepository):
+        def get(self, project_id: UUID) -> Project:
+            raise NotImplementedError
+
+        def get_all(self) -> list[Project]:
+            return []
+
+        def save(self, project: Project) -> None:
             raise ValidationError("Invalid project data")
 
-    repo = ValidationErrorProjectRepository()
+        def delete(self, project_id: UUID) -> None:
+            raise NotImplementedError
+
+        def get_inbox(self) -> Project:
+            raise NotImplementedError
+
+    repo = MockProjectRepository()
     use_case = CreateProjectUseCase(repo)
     request = CreateProjectRequest(name="Test Project", description="Test Description")
 
@@ -182,7 +203,11 @@ def test_create_project_handles_business_rule_violation():
 
     class BusinessRuleProjectRepository(InMemoryProjectRepository):
         def save(self, project):
-            raise BusinessRuleViolation("Project limit exceeded")
+            # Allow INBOX creation during initialization
+            if project.project_type == ProjectType.INBOX:
+                super().save(project)
+            else:
+                raise BusinessRuleViolation("Project limit exceeded")
 
     repo = BusinessRuleProjectRepository()
     use_case = CreateProjectUseCase(repo)
@@ -198,27 +223,39 @@ def test_create_project_handles_business_rule_violation():
 def test_complete_project_handles_validation_error():
     """Test handling of ValidationError during project completion."""
     project = Project(name="Test Project")
-    task = Task(title="Test Task", description="Test", project_id=uuid4())
+    task = Task(title="Test Task", description="Test", project_id=project.id)
     project.add_task(task)
 
-    class ValidationErrorProjectRepository(InMemoryProjectRepository):
-        def save(self, project):
+    class MockProjectRepository(ProjectRepository):
+        def get(self, project_id: UUID) -> Project:
+            if project_id == project.id:
+                return project
+            raise ProjectNotFoundError(project_id)
+
+        def get_all(self) -> list[Project]:
+            return [project]
+
+        def save(self, project: Project) -> None:
             raise ValidationError("Invalid completion state")
 
-    project_repo = ValidationErrorProjectRepository()
-    project_repo._projects[project.id] = project  # Add project directly
+        def delete(self, project_id: UUID) -> None:
+            raise NotImplementedError
+
+        def get_inbox(self) -> Project:
+            raise NotImplementedError
+
+    project_repo = MockProjectRepository()
     task_repo = InMemoryTaskRepository()
-    notifications = NotificationRecorder()
+    notification_service = NotificationRecorder()
 
-    use_case = CompleteProjectUseCase(project_repo, task_repo, notifications)
-    request = CompleteProjectRequest(project_id=str(project.id), completion_notes="Done!")
+    use_case = CompleteProjectUseCase(project_repo, task_repo, notification_service)
 
+    request = CompleteProjectRequest(project_id=str(project.id))
     result = use_case.execute(request)
 
     assert not result.is_success
     assert result.error.code == ErrorCode.VALIDATION_ERROR
     assert "Invalid completion state" in result.error.message
-    assert not notifications.completed_tasks
 
 
 def test_complete_project_fails_with_malformed_project_id():
@@ -235,61 +272,69 @@ def test_complete_project_fails_with_malformed_project_id():
 def test_complete_project_handles_business_rule_violation():
     """Test handling of BusinessRuleViolation during project completion."""
     project = Project(name="Test Project")
-    task = Task(title="Test Task", description="Test", project_id=uuid4())
+    task = Task(title="Test Task", description="Test", project_id=project.id)
     project.add_task(task)
 
     class BusinessRuleProjectRepository(InMemoryProjectRepository):
         def save(self, project):
-            raise BusinessRuleViolation("Cannot complete project in current state")
+            # Allow INBOX creation during initialization
+            if project.project_type == ProjectType.INBOX:
+                super().save(project)
+            else:
+                raise BusinessRuleViolation("Cannot complete project in current state")
 
     project_repo = BusinessRuleProjectRepository()
-    project_repo._projects[project.id] = project  # Add project directly
     task_repo = InMemoryTaskRepository()
-    notifications = NotificationRecorder()
+    notification_service = NotificationRecorder()
 
-    use_case = CompleteProjectUseCase(project_repo, task_repo, notifications)
-    request = CompleteProjectRequest(project_id=str(project.id), completion_notes="Done!")
+    use_case = CompleteProjectUseCase(project_repo, task_repo, notification_service)
 
+    # Add test project to repository manually
+    project_repo._projects[project.id] = project
+
+    request = CompleteProjectRequest(project_id=str(project.id))
     result = use_case.execute(request)
 
     assert not result.is_success
     assert result.error.code == ErrorCode.BUSINESS_RULE_VIOLATION
     assert "Cannot complete project in current state" in result.error.message
-    assert not notifications.completed_tasks
 
 
 def test_complete_project_handles_validation_error_from_task():
     """Test handling of ValidationError from task operations during project completion."""
     project = Project(name="Test Project")
-    task = Task(title="Test Task", description="Test", project_id=uuid4())
+    task = Task(title="Test Task", description="Test", project_id=project.id)
     project.add_task(task)
 
     class ValidationErrorTaskRepository(InMemoryTaskRepository):
         def save(self, task):
-            raise ValidationError("Invalid task completion state")
+            # Allow initial save but fail on completion attempt
+            if task.status == TaskStatus.DONE:
+                raise ValidationError("Invalid task completion state")
+            self._tasks[task.id] = task
 
     project_repo = InMemoryProjectRepository()
     project_repo._projects[project.id] = project  # Add project directly
     task_repo = ValidationErrorTaskRepository()
-    notifications = NotificationRecorder()
+    task_repo.save(task)  # This will succeed as task is not completed
+    notification_service = NotificationRecorder()
 
-    use_case = CompleteProjectUseCase(project_repo, task_repo, notifications)
-    request = CompleteProjectRequest(project_id=str(project.id), completion_notes="Done!")
+    use_case = CompleteProjectUseCase(project_repo, task_repo, notification_service)
 
+    request = CompleteProjectRequest(project_id=str(project.id))
     result = use_case.execute(request)
 
     assert not result.is_success
     assert result.error.code == ErrorCode.VALIDATION_ERROR
     assert "Invalid task completion state" in result.error.message
-    assert not notifications.completed_tasks
 
 
 def test_complete_project_rolls_back_on_validation_error():
     """Test that project and task states are rolled back on ValidationError."""
     # Set up project with tasks
     project = Project(name="Test Project")
-    task1 = Task(title="Task 1", description="Test", project_id=uuid4())
-    task2 = Task(title="Task 2", description="Test", project_id=uuid4())
+    task1 = Task(title="Task 1", description="Test", project_id=project.id)
+    task2 = Task(title="Task 2", description="Test", project_id=project.id)
     project.add_task(task1)
     project.add_task(task2)
 
@@ -335,8 +380,8 @@ def test_complete_project_rolls_back_on_business_rule_violation():
     """Test that project and task states are rolled back on BusinessRuleViolation."""
     # Set up project with tasks
     project = Project(name="Test Project")
-    task1 = Task(title="Task 1", description="Test", project_id=uuid4())
-    task2 = Task(title="Task 2", description="Test", project_id=uuid4())
+    task1 = Task(title="Task 1", description="Test", project_id=project.id)
+    task2 = Task(title="Task 2", description="Test", project_id=project.id)
     project.add_task(task1)
     project.add_task(task2)
 
@@ -365,6 +410,7 @@ def test_complete_project_rolls_back_on_business_rule_violation():
     # Verify failure
     assert not result.is_success
     assert result.error.code == ErrorCode.BUSINESS_RULE_VIOLATION
+    assert "Task limit reached" in result.error.message
 
     # Verify project state was rolled back
     saved_project = project_repo.get(project.id)

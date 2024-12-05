@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from uuid import UUID
 import pytest
 
-from todo_app.domain.value_objects import ProjectStatus
+from todo_app.domain.value_objects import ProjectStatus, ProjectType
 from todo_app.domain.value_objects import TaskStatus, Priority
 from todo_app.application.dtos.task_dtos import TaskResponse
 from todo_app.application.dtos.project_dtos import CompleteProjectResponse, ProjectResponse
@@ -72,6 +72,7 @@ def sample_project_response(sample_task_response):
     return ProjectResponse(
         id="660e8400-e29b-41d4-a716-446655440000",
         name="Test Project",
+        project_type=ProjectType.REGULAR,
         description="Test Description",
         status=ProjectStatus.ACTIVE,
         completion_date=None,
@@ -98,6 +99,7 @@ def test_cli_project_presenter_formats_completed_project(project_presenter):
     response = ProjectResponse(
         id="123",
         name="Test Project",
+        project_type=ProjectType.REGULAR,
         description="Description",
         status=ProjectStatus.COMPLETED,
         completion_date=completed_date,
@@ -146,6 +148,7 @@ def test_cli_project_presenter_formats_empty_project(project_presenter):
     project = ProjectResponse(
         id="123e4567-e89b-12d3-a456-426614174000",
         name="Empty Project",
+        project_type=ProjectType.REGULAR,
         description="No tasks",
         status=ProjectStatus.ACTIVE,
         completion_date=None,
@@ -180,6 +183,7 @@ def test_cli_project_presenter_formats_project_with_mixed_tasks(project_presente
     project = ProjectResponse(
         id="123e4567-e89b-12d3-a456-426614174000",
         name="Mixed Project",
+        project_type=ProjectType.REGULAR,
         description="Mixed tasks",
         status=ProjectStatus.ACTIVE,
         completion_date=None,
@@ -252,6 +256,7 @@ def test_cli_project_presenter_task_aggregation(project_presenter):
     project_response = ProjectResponse(
         id="550e8400-e29b-41d4-a716-446655440000",
         name="Test Project",
+        project_type=ProjectType.REGULAR,
         description="Testing task counts",
         status=ProjectStatus.ACTIVE,
         completion_date=None,
@@ -270,6 +275,7 @@ def test_cli_project_presenter_formats_long_description(project_presenter):
     project_response = ProjectResponse(
         id="550e8400-e29b-41d4-a716-446655440000",
         name="Test Project",
+        project_type=ProjectType.REGULAR,
         description=long_description,
         status=ProjectStatus.ACTIVE,
         completion_date=None,
@@ -285,6 +291,7 @@ def test_cli_project_presenter_formats_special_characters(project_presenter):
     project_response = ProjectResponse(
         id="550e8400-e29b-41d4-a716-446655440000",
         name="Test & Project!",
+        project_type=ProjectType.REGULAR,
         description="Testing @ special # characters!",
         status=ProjectStatus.ACTIVE,
         completion_date=None,
