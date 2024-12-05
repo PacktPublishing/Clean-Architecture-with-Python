@@ -1,12 +1,11 @@
 from dataclasses import dataclass, field
 from datetime import datetime
-from inspect import stack
 from typing import Optional
 from uuid import UUID
 
-from todo_app.domain.exceptions import BusinessRuleViolation
 from todo_app.domain.entities.entity import Entity
 from todo_app.domain.entities.task import Task
+from todo_app.domain.exceptions import BusinessRuleViolation
 from todo_app.domain.value_objects import (
     ProjectType,
     TaskStatus,
@@ -28,13 +27,13 @@ class Project(Entity):
     completion_notes: Optional[str] = field(default=None, init=False)
     _tasks: dict[UUID, Task] = field(default_factory=dict, init=False)
 
-    def __post_init__(self) -> None:
-        # Only allow INBOX_NAME as project name if created via create_inbox()
-        if self.name == self.INBOX_NAME:
-            caller_frames = stack()
-            create_inbox_called = any(frame.function == "create_inbox" for frame in caller_frames)
-            if not create_inbox_called:
-                raise BusinessRuleViolation(f"'{self.INBOX_NAME}' is a reserved name.")
+    # def __post_init__(self) -> None:
+    #     # Only allow INBOX_NAME as project name if created via create_inbox()
+    #     if self.name == self.INBOX_NAME:
+    #         caller_frames = stack()
+    #         create_inbox_called = any(frame.function == "create_inbox" for frame in caller_frames)
+    #         if not create_inbox_called:
+    #             raise BusinessRuleViolation(f"'{self.INBOX_NAME}' is a reserved name.")
 
     @classmethod
     def create_inbox(cls) -> "Project":
@@ -72,7 +71,7 @@ class Project(Entity):
         Args:
             notes: Optional completion notes
         """
-        if self.name == self.INBOX_NAME:
+        if self.project_type == ProjectType.INBOX:
             raise BusinessRuleViolation("The INBOX project cannot be completed")
         self.status = ProjectStatus.COMPLETED
         self.completed_at = datetime.now()

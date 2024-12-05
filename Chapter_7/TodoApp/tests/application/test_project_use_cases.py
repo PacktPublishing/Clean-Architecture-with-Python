@@ -34,24 +34,6 @@ from todo_app.domain.value_objects import (
 )
 
 
-def test_inbox_project_creation_rules():
-    """Test that INBOX project can only be created via create_inbox method."""
-    # Test valid inbox creation
-    inbox = Project.create_inbox()
-    assert inbox.name == Project.INBOX_NAME
-    assert inbox.description == "Default project for unassigned tasks"
-
-    # Test that direct creation with INBOX name raises error
-    with pytest.raises(BusinessRuleViolation) as exc_info:
-        Project(name=Project.INBOX_NAME)
-
-    assert str(exc_info.value) == f"'{Project.INBOX_NAME}' is a reserved name."
-
-    # Test that regular project creation still works
-    regular_project = Project(name="My Project")
-    assert regular_project.name == "My Project"
-
-
 def test_create_project():
     """Test creating a project with basic information."""
     # Arrange

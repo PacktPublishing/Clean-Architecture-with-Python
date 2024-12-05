@@ -134,12 +134,15 @@ class FileProjectRepository(ProjectRepository):
     def __init__(self, data_dir: Path):
         self.projects_file = data_dir / "projects.json"
         self._ensure_file_exists()
+
+        # Create the task repository
+        self.task_repository = FileTaskRepository(data_dir)
+
         # Initialize INBOX if doesn't exist
         inbox = self._fetch_inbox()
         if not inbox:
             inbox = Project.create_inbox()
             self.save(inbox)
-        self.task_repository = FileTaskRepository(data_dir)
 
     def _ensure_file_exists(self) -> None:
         """Create the projects file if it doesn't exist."""
@@ -160,6 +163,7 @@ class FileProjectRepository(ProjectRepository):
             "id": project.id,
             "name": project.name,
             "description": project.description,
+            "project_type": project.project_type.name,
             "status": project.status.name,
             "completed_at": project.completed_at,
             "completion_notes": project.completion_notes,
@@ -167,8 +171,11 @@ class FileProjectRepository(ProjectRepository):
 
     def _dict_to_project(self, data: Dict[str, Any]) -> Project:
         """Convert a dictionary to a Project entity."""
-        # Create project with required attributes
-        project = Project(name=data["name"], description=data["description"])
+        # Handle INBOX project specially
+        if data.get("project_type") == ProjectType.INBOX.name:
+            project = Project.create_inbox()
+        else:
+            project = Project(name=data["name"], description=data["description"])
 
         # Set additional attributes
         project.status = ProjectStatus[data["status"]]
@@ -180,8 +187,7 @@ class FileProjectRepository(ProjectRepository):
         project.id = UUID(data["id"])
 
         # Load associated tasks
-        for task in self.task_repository.find_by_project(project.id):
-            project._tasks[task.id] = task
+        self._load_project_tasks(project)
 
         return project
 
@@ -194,8 +200,9 @@ class FileProjectRepository(ProjectRepository):
         raise ProjectNotFoundError(project_id)
 
     def get_all(self) -> List[Project]:
-        """Get all projects."""
-        return [self._dict_to_project(p) for p in self._load_projects()]
+        """Get all projects with their tasks loaded."""
+        projects = [self._dict_to_project(p) for p in self._load_projects()]
+        return projects
 
     def save(self, project: Project) -> None:
         """Save a project and its tasks."""
@@ -230,15 +237,32 @@ class FileProjectRepository(ProjectRepository):
         self._save_projects(projects)
 
     def _fetch_inbox(self) -> Optional[Project]:
-        """Is there an INBOX project"""
-        inbox = next(
-            (p for p in self._load_projects() if p["project_type"] == ProjectType.INBOX.name), None
-        )
-        return self._dict_to_project(inbox) if inbox else None
+        """Find the INBOX project."""
+        projects = self._load_projects()
+        for project_data in projects:
+            if project_data.get("project_type") == ProjectType.INBOX.name:
+                return self._dict_to_project(project_data)
+        return None
 
-    def get_inbox(self, inbox_name: str) -> Project:
+    def get_inbox(self) -> Project:
         """Get the INBOX project."""
         inbox = self._fetch_inbox()
         if not inbox:
-            raise InboxNotFoundError()
+            raise InboxNotFoundError("The Inbox project was not found")
         return inbox
+
+    def _load_project_tasks(self, project: Project) -> None:
+        """Load tasks for a project."""
+        try:
+            # Clear existing tasks
+            project._tasks.clear()
+
+            # Load tasks from task repository
+            tasks = self.task_repository.find_by_project(project.id)
+
+            # Associate tasks with project
+            for task in tasks:
+                project._tasks[task.id] = task
+        except Exception as e:
+            # Log error but don't crash - empty task list is better than no project
+            print(f"Error loading tasks for project {project.id}: {str(e)}")

@@ -20,12 +20,14 @@ class Config:
 
     # Default values
     DEFAULT_REPOSITORY_TYPE: RepositoryType = "memory"
-    DEFAULT_DATA_DIR = "data"
+    DEFAULT_DATA_DIR = "repo_data"
 
     @classmethod
     def get_repository_type(cls) -> RepositoryType:
         """Get the configured repository type."""
-        repo_type = os.getenv("TODO_REPOSITORY_TYPE", cls.DEFAULT_REPOSITORY_TYPE)
+        repo_type = os.getenv(
+            "TODO_REPOSITORY_TYPE", cls.DEFAULT_REPOSITORY_TYPE
+        )
         if repo_type not in ("memory", "file"):
             return cls.DEFAULT_REPOSITORY_TYPE
         return repo_type
