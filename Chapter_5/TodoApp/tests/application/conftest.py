@@ -5,14 +5,14 @@ from dataclasses import dataclass
 from typing import Sequence
 from uuid import UUID
 
-from todo_app.application.ports.notifications import (
-    NotificationPort,
-)
 from todo_app.application.repositories.project_repository import (
     ProjectRepository,
 )
 from todo_app.application.repositories.task_repository import (
     TaskRepository,
+)
+from todo_app.application.service_ports.notifications import (
+    NotificationPort,
 )
 from todo_app.domain.entities.project import Project
 from todo_app.domain.entities.task import Task

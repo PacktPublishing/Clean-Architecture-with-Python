@@ -15,7 +15,7 @@ from todo_app.application.dtos.project_dtos import (
     CompleteProjectResponse,
     UpdateProjectRequest,
 )
-from todo_app.application.ports.notifications import (
+from todo_app.application.service_ports.notifications import (
     NotificationPort,
 )
 from todo_app.application.repositories.project_repository import (

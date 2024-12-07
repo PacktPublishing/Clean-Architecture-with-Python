@@ -12,7 +12,7 @@ from todo_app.application.dtos.task_dtos import (
     TaskResponse,
     SetTaskPriorityRequest,
 )
-from todo_app.application.ports.notifications import (
+from todo_app.application.service_ports.notifications import (
     NotificationPort,
 )
 from todo_app.application.repositories.project_repository import (
@@ -60,9 +60,7 @@ class CompleteTaskUseCase:
                 raise  # Re-raise the exception to be caught by outer try block
 
         except TaskNotFoundError:
-            return Result.failure(
-                Error.not_found("Task", str(params["task_id"]))
-            )
+            return Result.failure(Error.not_found("Task", str(params["task_id"])))
         except ValidationError as e:
             return Result.failure(Error.validation_error(str(e)))
         except BusinessRuleViolation as e:
@@ -102,9 +100,7 @@ class CreateTaskUseCase:
             return Result.success(TaskResponse.from_entity(task))
 
         except ProjectNotFoundError:
-            return Result.failure(
-                Error.not_found("Project", str(params.get("project_id")))
-            )
+            return Result.failure(Error.not_found("Project", str(params.get("project_id"))))
         except ValidationError as e:
             return Result.failure(Error.validation_error(str(e)))
         except BusinessRuleViolation as e:

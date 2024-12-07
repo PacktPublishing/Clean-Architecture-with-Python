@@ -1,4 +1,4 @@
-# todo_app/application/ports/notifications.py
+# todo_app/application/service_ports/notifications.py
 """
 This module defines the notification interface (port) for external notification services.
 """

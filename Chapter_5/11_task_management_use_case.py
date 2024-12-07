@@ -4,7 +4,7 @@ from uuid import UUID
 
 from todo_app.application.common.result import Result, Error
 from todo_app.application.dtos.task_dtos import TaskResponse
-from todo_app.application.ports.notifications import (
+from todo_app.application.serviceports.notifications import (
     NotificationPort,
 )
 from todo_app.application.repositories.task_repository import (

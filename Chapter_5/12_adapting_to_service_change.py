@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from todo_app.application.ports.notifications import (
+from todo_app.application.service_ports.notifications import (
     NotificationPort,
 )
 

@@ -17,7 +17,7 @@ while maintaining core functionality.
 
 from dataclasses import dataclass
 from uuid import UUID
-from todo_app.application.ports.notifications import NotificationPort
+from todo_app.application.service_ports.notifications import NotificationPort
 
 @dataclass
 class NotificationRecorder(NotificationPort):
