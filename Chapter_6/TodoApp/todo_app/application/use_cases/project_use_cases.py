@@ -40,9 +40,7 @@ class CreateProjectUseCase:
         try:
             params = request.to_execution_params()
 
-            project = Project(
-                name=params["name"], description=params["description"]
-            )
+            project = Project(name=params["name"], description=params["description"])
 
             self.project_repository.save(project)
 
@@ -70,9 +68,7 @@ class CompleteProjectUseCase:
 
             # Take snapshots of initial state
             project_snapshot = deepcopy(project)
-            task_snapshots = {
-                task.id: deepcopy(task) for task in project.incomplete_tasks
-            }
+            task_snapshots = {task.id: deepcopy(task) for task in project.incomplete_tasks}
 
             try:
                 # Complete all outstanding tasks
@@ -86,10 +82,8 @@ class CompleteProjectUseCase:
 
                 self.project_repository.save(project)
                 for task in project_snapshot.incomplete_tasks:
-                    self.notification_service.notify_task_completed(task.id)
-                return Result.success(
-                    CompleteProjectResponse.from_entity(project)
-                )
+                    self.notification_service.notify_task_completed(task)
+                return Result.success(CompleteProjectResponse.from_entity(project))
 
             except (ValidationError, BusinessRuleViolation) as e:
                 # Restore project state
@@ -99,9 +93,7 @@ class CompleteProjectUseCase:
                 raise  # Re-raise the exception to be caught by outer try block
 
         except ProjectNotFoundError:
-            return Result.failure(
-                Error.not_found("Project", str(params["project_id"]))
-            )
+            return Result.failure(Error.not_found("Project", str(params["project_id"])))
         except ValidationError as e:
             return Result.failure(Error.validation_error(str(e)))
         except BusinessRuleViolation as e:

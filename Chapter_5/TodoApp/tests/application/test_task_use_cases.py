@@ -412,8 +412,8 @@ def test_complete_task_maintains_state_on_successful_completion():
     assert saved_task.completed_at is not None
     assert saved_task.completion_notes == completion_notes
 
-    # Verify notification was sent
-    assert task.id in notifications.completed_tasks
+    # Verify notification was sent - compare task IDs directly
+    assert str(task.id) in [str(t_id) for t_id in notifications.completed_tasks]
 
 
 def test_create_task_with_nonexistent_project():

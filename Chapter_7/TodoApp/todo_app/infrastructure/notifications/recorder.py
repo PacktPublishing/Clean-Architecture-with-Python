@@ -16,44 +16,43 @@ while maintaining core functionality.
 """
 
 from dataclasses import dataclass
-from uuid import UUID
+from todo_app.domain.entities.task import Task
 from todo_app.application.service_ports.notifications import NotificationPort
+
 
 @dataclass
 class NotificationRecorder(NotificationPort):
     """
     Simple notification implementation for teaching Interface Adapters concepts.
-    
+
     This class demonstrates how notification gateways work in Clean Architecture:
     - Implements interface defined by Application layer
     - Encapsulates notification details (simple printing in this case)
     - Maintains separation between notification and business logic
-    
+
     While simplified, this implementation establishes patterns that will be used
     in actual notification service implementations.
     """
-    
+
     def __init__(self) -> None:
         self.completed_tasks = []
         self.high_priority_tasks = []
         self.deadline_warnings = []
 
-    def notify_task_completed(self, task_id: UUID) -> None:
+    def notify_task_completed(self, task: Task) -> None:
         """Record a task completion notification."""
-        message = f"Task {task_id} has been completed"
+        message = f"Task {task.id} has been completed"
         print(f"NOTIFICATION: {message}")
-        self.completed_tasks.append(task_id)
+        self.completed_tasks.append(task.id)
 
-    def notify_task_high_priority(self, task_id: UUID) -> None:
+    def notify_task_high_priority(self, task: Task) -> None:
         """Record a high priority task notification."""
-        message = f"Task {task_id} has been set to high priority"
+        message = f"Task {task.id} has been set to high priority"
         print(f"NOTIFICATION: {message}")
-        self.high_priority_tasks.append(task_id)
+        self.high_priority_tasks.append(task.id)
 
-    def notify_task_deadline_approaching(
-        self, task_id: UUID, days_remaining: int
-    ) -> None:
+    def notify_task_deadline_approaching(self, task: Task, days_remaining: int) -> None:
         """Record a deadline approaching notification."""
-        message = f"Task {task_id} deadline approaching in {days_remaining} days"
+        message = f"Task {task.id} deadline approaching in {days_remaining} days"
         print(f"NOTIFICATION: {message}")
-        self.deadline_warnings.append((task_id, days_remaining))
+        self.deadline_warnings.append((task.id, days_remaining))

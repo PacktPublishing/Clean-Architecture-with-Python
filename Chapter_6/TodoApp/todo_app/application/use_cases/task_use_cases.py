@@ -50,7 +50,7 @@ class CompleteTaskUseCase:
             try:
                 task.complete(notes=params["completion_notes"])
                 self.task_repository.save(task)
-                self.notification_service.notify_task_completed(task.id)
+                self.notification_service.notify_task_completed(task)
 
                 return Result.success(TaskResponse.from_entity(task))
 
@@ -122,7 +122,7 @@ class SetTaskPriorityUseCase:
             self.task_repository.save(task)
 
             if task.priority == Priority.HIGH:
-                self.notification_service.notify_task_high_priority(task.id)
+                self.notification_service.notify_task_high_priority(task)
 
             return Result.success(TaskResponse.from_entity(task))
         except ValidationError as e:

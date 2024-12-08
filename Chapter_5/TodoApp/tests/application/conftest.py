@@ -44,18 +44,10 @@ class InMemoryTaskRepository(TaskRepository):
         self._tasks.pop(task_id, None)
 
     def find_by_project(self, project_id: UUID) -> Sequence[Task]:
-        return [
-            task
-            for task in self._tasks.values()
-            if task.project_id == project_id
-        ]
+        return [task for task in self._tasks.values() if task.project_id == project_id]
 
     def get_active_tasks(self) -> Sequence[Task]:
-        return [
-            task
-            for task in self._tasks.values()
-            if task.status != TaskStatus.DONE
-        ]
+        return [task for task in self._tasks.values() if task.status != TaskStatus.DONE]
 
 
 @dataclass
@@ -92,13 +84,11 @@ class NotificationRecorder(NotificationPort):
         self.high_priority_tasks = []
         self.deadline_warnings = []
 
-    def notify_task_completed(self, task_id: UUID) -> None:
-        self.completed_tasks.append(task_id)
+    def notify_task_completed(self, task: Task) -> None:
+        self.completed_tasks.append(task.id)
 
-    def notify_task_high_priority(self, task_id: UUID) -> None:
-        self.high_priority_tasks.append(task_id)
+    def notify_task_high_priority(self, task: Task) -> None:
+        self.high_priority_tasks.append(task.id)
 
-    def notify_task_deadline_approaching(
-        self, task_id: UUID, days_remaining: int
-    ) -> None:
-        self.deadline_warnings.append((task_id, days_remaining))
+    def notify_task_deadline_approaching(self, task: Task, days_remaining: int) -> None:
+        self.deadline_warnings.append((task.id, days_remaining))

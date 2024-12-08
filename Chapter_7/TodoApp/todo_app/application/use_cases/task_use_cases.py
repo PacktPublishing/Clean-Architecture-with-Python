@@ -52,7 +52,7 @@ class CompleteTaskUseCase:
             try:
                 task.complete(notes=params["completion_notes"])
                 self.task_repository.save(task)
-                self.notification_service.notify_task_completed(task.id)
+                self.notification_service.notify_task_completed(task)
 
                 return Result.success(TaskResponse.from_entity(task))
 
@@ -147,7 +147,7 @@ class UpdateTaskUseCase:
             if request.priority is not None:
                 task.priority = request.priority
                 if task.priority == Priority.HIGH:
-                    self.notification_service.notify_task_high_priority(task.id)
+                    self.notification_service.notify_task_high_priority(task)
 
             self.task_repository.save(task)
             return Result.success(TaskResponse.from_entity(task))

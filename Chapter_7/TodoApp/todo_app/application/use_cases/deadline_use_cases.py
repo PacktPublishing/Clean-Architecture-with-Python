@@ -34,9 +34,7 @@ class CheckDeadlinesUseCase:
                     remaining_days = int(
                         task.due_date.time_remaining().total_seconds() / (24 * 3600)
                     )
-                    self.notification_service.notify_task_deadline_approaching(
-                        task.id, remaining_days
-                    )
+                    self.notification_service.notify_task_deadline_approaching(task, remaining_days)
                     notifications_sent += 1
 
             return Result.success({"notifications_sent": notifications_sent})

@@ -85,7 +85,7 @@ class CompleteProjectUseCase:
 
                 self.project_repository.save(project)
                 for task in project_snapshot.incomplete_tasks:
-                    self.notification_service.notify_task_completed(task.id)
+                    self.notification_service.notify_task_completed(task)
                 return Result.success(CompleteProjectResponse.from_entity(project))
 
             except (ValidationError, BusinessRuleViolation) as e:
