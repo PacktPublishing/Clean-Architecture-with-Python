@@ -12,7 +12,7 @@ from todo_app.domain.value_objects import Priority
 class ClickCli:
     def __init__(self, app: Application):
         self.app = app
-        self.current_projects = []
+        self.current_projects = []  # Cached list of projects for display
 
     def run(self) -> int:
         """Entry point for running the Click CLI application"""

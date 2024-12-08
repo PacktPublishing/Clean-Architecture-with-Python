@@ -4,7 +4,7 @@ Application container that configures and wires together all components.
 
 from dataclasses import dataclass
 
-from todo_app.application.ports.notifications import NotificationPort
+from todo_app.application.service_ports.notifications import NotificationPort
 from todo_app.application.repositories.project_repository import ProjectRepository
 from todo_app.application.repositories.task_repository import TaskRepository
 from todo_app.interfaces.presenters.base import ProjectPresenter, TaskPresenter
@@ -33,6 +33,7 @@ def create_application(
     project_presenter: ProjectPresenter,
 ) -> "Application":
     """
+    Factory function for the Application container.
     Create and configure the application container with all required dependencies.
 
     Args:
