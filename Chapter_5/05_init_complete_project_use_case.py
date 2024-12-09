@@ -18,11 +18,13 @@ from todo_app.domain.exceptions import (
     ValidationError,
 )
 
+from todo_app.domain.models.task import Task
+
 
 class NotificationService:
     """Stub to make mypy happy"""
 
-    def notify_task_completed(self, task_id: UUID) -> None:
+    def notify_task_completed(self, task: Task) -> None:
         pass
 
 
@@ -32,9 +34,7 @@ class CompleteProjectUseCase:
     task_repository: TaskRepository
     notification_service: NotificationService
 
-    def execute(
-        self, project_id: UUID, completion_notes: Optional[str] = None
-    ) -> Result:
+    def execute(self, project_id: UUID, completion_notes: Optional[str] = None) -> Result:
         try:
             # Validate project exists
             project = self.project_repository.get(project_id)
@@ -49,13 +49,15 @@ class CompleteProjectUseCase:
             project.mark_completed(notes=completion_notes)
             self.project_repository.save(project)
 
-            return Result.success({
-                "id": str(project.id),
-                "status": project.status,
-                "completion_date": project.completed_at,
-                "task_count": len(project.tasks),
-                "completion_notes": project.completion_notes,
-            })
+            return Result.success(
+                {
+                    "id": str(project.id),
+                    "status": project.status,
+                    "completion_date": project.completed_at,
+                    "task_count": len(project.tasks),
+                    "completion_notes": project.completion_notes,
+                }
+            )
 
         except ProjectNotFoundError:
             return Result.failure(Error.not_found("Project", str(project_id)))

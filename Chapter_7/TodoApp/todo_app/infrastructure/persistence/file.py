@@ -138,7 +138,11 @@ class FileProjectRepository(ProjectRepository):
         # Create the task repository
         self.task_repository = FileTaskRepository(data_dir)
 
-        # Initialize INBOX if doesn't exist
+        """
+        Initialize INBOX if doesn't exist
+        The key is that while INBOX's existence is guaranteed by 
+        infrastructure, its behavior and rules remain in the domain layer.
+        """
         inbox = self._fetch_inbox()
         if not inbox:
             inbox = Project.create_inbox()

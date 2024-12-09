@@ -85,7 +85,11 @@ class InMemoryProjectRepository(ProjectRepository):
         self._initialize_inbox()
 
     def _initialize_inbox(self) -> None:
-        """Initialize the INBOX project if it doesn't exist."""
+        """
+        Initialize the INBOX project if it doesn't exist.
+        The key is that while INBOX's existence is guaranteed by
+        infrastructure, its behavior and rules remain in the domain layer.
+        """
         inbox = self._fetch_inbox()
         if not inbox:
             inbox = Project.create_inbox()

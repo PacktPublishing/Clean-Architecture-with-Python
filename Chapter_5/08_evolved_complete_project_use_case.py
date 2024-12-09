@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from uuid import UUID
 
 from todo_app.application.common.result import Result, Error
 from todo_app.application.dtos.project_dtos import (
@@ -21,7 +20,7 @@ from todo_app.domain.exceptions import (
 class NotificationService:
     """Stub to make mypy happy"""
 
-    def notify_task_completed(self, task_id: UUID) -> None:
+    def notify_task_completed(self, task: Task) -> None:
         pass
 
 
