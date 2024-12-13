@@ -2,3 +2,4 @@ pytest~=8.3.3
 freezegun~=1.5.1
 click~=8.1.7
 python-dotenv~=1.0.1
+sendgrid~=6.11.0

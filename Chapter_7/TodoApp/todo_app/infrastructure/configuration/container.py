@@ -4,6 +4,7 @@ Application container that configures and wires together all components.
 
 from dataclasses import dataclass
 
+from todo_app.infrastructure.notifications.factory import create_notification_service
 from todo_app.application.service_ports.notifications import NotificationPort
 from todo_app.application.repositories.project_repository import ProjectRepository
 from todo_app.application.repositories.task_repository import TaskRepository
@@ -45,6 +46,9 @@ def create_application(
         Configured Application instance
     """
     task_repository, project_repository = create_repositories()
+
+    # Create notification service with automatic fallback
+    notification_service = create_notification_service()
 
     return Application(
         task_repository=task_repository,

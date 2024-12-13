@@ -134,9 +134,7 @@ class FileProjectRepository(ProjectRepository):
     def __init__(self, data_dir: Path):
         self.projects_file = data_dir / "projects.json"
         self._ensure_file_exists()
-
-        # Create the task repository
-        self.task_repository = FileTaskRepository(data_dir)
+        self._task_repo = None
 
         """
         Initialize INBOX if doesn't exist
@@ -147,6 +145,9 @@ class FileProjectRepository(ProjectRepository):
         if not inbox:
             inbox = Project.create_inbox()
             self.save(inbox)
+
+    def set_task_repository(self, task_repo: TaskRepository) -> None:
+        self._task_repo = task_repo
 
     def _ensure_file_exists(self) -> None:
         """Create the projects file if it doesn't exist."""

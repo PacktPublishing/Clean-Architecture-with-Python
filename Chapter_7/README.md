@@ -1,58 +1,101 @@
 # Chapter 7
 
-The code from the chapter can be found in the order of appearance in the files with numeric indexes (ex:
-`00_error_class.py`)
+This chapter completes the Clean Architecture implementation of the task management application by adding the Frameworks and Drivers layer. The code demonstrates how to integrate external frameworks, databases, and services while maintaining clean architectural boundaries.
 
-In addition to that the evolving personal todo app files aligned with the chapter content can be found in the `ToDoApp`
-folder.
+## Running the Task Management Application
+
+### Prerequisites
+- Python 3.13 or higher
+- Optional: SendGrid account and API key (for email notifications)
+
+### Installation
+1. Clone the repository
+2. Create and activate a virtual environment:
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
+3. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+### Configuration
+The application supports configuration through environment variables:
+
+```bash
+# Repository Configuration
+export TODO_REPOSITORY_TYPE="memory"  # or "file"
+export TODO_DATA_DIR="repo_data"      # used with file repository
+
+# Optional: Email Notification Configuration
+# Will default to (offline) NotificationRecorder if not set
+export TODO_SENDGRID_API_KEY="your_api_key"
+export TODO_NOTIFICATION_EMAIL="recipient@example.com"
+```
+
+### Running the Application
+```bash
+cd Chapter_7/TodoApp
+python main.py
+```
+
+## Project Structure
+The complete application structure including the Frameworks and Drivers layer:
 
 ```text
 └── todo_app
-    ├── application
+    ├── application          # (From Chapter 5)
     │    ├── common
-    │    │    └── result.py
     │    ├── dtos
-    │    │    ├── project_dtos.py
-    │    │    └── task_dtos.py
     │    ├── ports
-    │    │    └── notifications.py
     │    ├── repositories
-    │    │    ├── project_repository.py
-    │    │    └── task_repository.py
     │    └── use_cases
-    │        ├── project_use_cases.py
-    │        └── task_use_cases.py
-    └── domain
-    │   ├── entities
-    │   │    ├── entity.py
-    │   │    ├── project.py
-    │   │    └── task.py
-    │   ├── exceptions.py
-    │   ├── services
-    │   │    └── task_priority_calculator.py
-    │   └── value_objects.py
     │
-    ├── interface   
-    │   ├── controllers  
-    │   │   ├── project_controller.py
-    │   │   └── task_controller.py
-    │   ├── presenters
-    │   │   ├── base.py
-    │   │   └── cli.py
-    │   └── view_models
-    │       ├── base.py
-    │       ├── project_vm.py
-    │       └── task_vm.py
-    └── infrastructure
-        ├── cli
-        │   ├── click_cli_app.py
-        │   └── simple_cli_app.py
-        ├── config
-        │   └── container.py
-        ├── notifications
-        │   └── recorder.py
-        ├── persistence
-        │   └── memory.py
-        └── web
-            └── api_app.py
+    ├── domain              # (From Chapter 4)
+    │    ├── entities
+    │    ├── exceptions.py
+    │    ├── services
+    │    └── value_objects.py
+    │
+    ├── interfaces          # (From Chapter 6)
+    │    ├── controllers
+    │    ├── presenters
+    │    └── view_models
+    │
+    └── infrastructure      # (New in Chapter 7)
+         ├── cli
+         │    └── click_cli_app.py
+         ├── configuration
+         │    └── container.py
+         ├── notifications
+         │    ├── recorder.py
+         │    └── sendgrid.py
+         ├── persistence
+         │    ├── memory.py
+         │    └── file.py
+         ├── config.py
+         └── repository_factory.py
 ```
+
+## Key Features
+- Command-line interface using Click framework
+- Choice of in-memory or file-based storage
+- Task and project management
+- Optional email notifications for task completion
+
+## Using the Application
+The application provides an interactive CLI for managing tasks and projects:
+
+1. View and select projects using numbers (e.g., "1")
+2. View and select tasks using project.task format (e.g., "1.a")
+3. Create new projects using "np" command
+4. Create tasks within projects or in the default INBOX
+5. Complete, update, and delete tasks
+6. Edit project details and manage project completion
+
+## Implementation Notes
+- The infrastructure layer demonstrates Clean Architecture's approach to external dependencies
+- Framework adapters (CLI) maintain separation from business logic
+- Repository implementations show flexible storage options
+- Optional notification services demonstrate clean integration of external services

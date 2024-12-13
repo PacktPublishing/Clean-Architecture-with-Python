@@ -15,7 +15,7 @@ from todo_app.infrastructure.persistence.file import (
     FileTaskRepository,
     FileProjectRepository,
 )
-from todo_app.infrastructure.config import Config
+from todo_app.infrastructure.config import Config, RepositoryType
 
 
 def create_repositories() -> Tuple[TaskRepository, ProjectRepository]:
@@ -27,13 +27,18 @@ def create_repositories() -> Tuple[TaskRepository, ProjectRepository]:
     """
     repo_type = Config.get_repository_type()
 
-    if repo_type == "file":
+    if repo_type == RepositoryType.FILE:
         data_dir = Config.get_data_directory()
-        return FileTaskRepository(data_dir), FileProjectRepository(data_dir)
-
-    # Memory repositories
-    task_repo = InMemoryTaskRepository()
-    project_repo = InMemoryProjectRepository()
-    # Connect the repositories
-    project_repo.set_task_repository(task_repo)
-    return task_repo, project_repo
+        task_repo = FileTaskRepository(data_dir)
+        project_repo = FileProjectRepository(data_dir)
+        project_repo.set_task_repository(task_repo)
+        return task_repo, project_repo
+    elif repo_type == RepositoryType.MEMORY:
+        # Memory repositories
+        task_repo = InMemoryTaskRepository()
+        project_repo = InMemoryProjectRepository()
+        # Connect the repositories
+        project_repo.set_task_repository(task_repo)
+        return task_repo, project_repo
+    else:
+        raise ValueError(f"Invalid repository type: {repo_type}")
