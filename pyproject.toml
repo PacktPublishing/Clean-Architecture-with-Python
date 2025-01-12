@@ -1,0 +1,18 @@
+[project]
+name = "clean-architecture-with-python"
+version = "0.1.0"
+description = "Companion app for Clean Architecture with Python"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "click>=8.1.8",
+    "freezegun>=1.5.1",
+    "python-dotenv>=1.0.1",
+    "sendgrid>=6.11.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.4",
+    "pytest-random-order>=1.1.1",
+]

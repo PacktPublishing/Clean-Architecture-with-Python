@@ -228,13 +228,13 @@ class FileProjectRepository(ProjectRepository):
 
         # Save associated tasks
         for task in project.tasks:
-            self.task_repository.save(task)
+            self._task_repo.save(task)
 
     def delete(self, project_id: UUID) -> None:
         """Delete a project and its tasks."""
         # Delete associated tasks first
-        for task in self.task_repository.find_by_project(project_id):
-            self.task_repository.delete(task.id)
+        for task in self._task_repo.find_by_project(project_id):
+            self._task_repo.delete(task.id)
 
         # Then delete the project
         projects = self._load_projects()
@@ -263,7 +263,7 @@ class FileProjectRepository(ProjectRepository):
             project._tasks.clear()
 
             # Load tasks from task repository
-            tasks = self.task_repository.find_by_project(project.id)
+            tasks = self._task_repo.find_by_project(project.id)
 
             # Associate tasks with project
             for task in tasks:
