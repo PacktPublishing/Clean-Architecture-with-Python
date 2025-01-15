@@ -51,7 +51,7 @@ pytest
 Run tests in parallel:
 ```bash
 # ensure pytest-xdist is installed
-pytest -n auth
+pytest -n auto
 ```
 
 Run tests in random order:
