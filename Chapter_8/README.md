@@ -1,101 +1,61 @@
-# Chapter 8
+# Chapter 8: Test-Driven Clean Architecture: Ensuring Python Code Quality
 
-This chapter completes the Clean Architecture implementation of the task management application by adding the Frameworks and Drivers layer. The code demonstrates how to integrate external frameworks, databases, and services while maintaining clean architectural boundaries.
+This chapter explores how Clean Architecture's explicit boundaries and separation of concerns naturally enable comprehensive testing strategies. Using our task management system as an example, we'll see how Clean Architecture's structure supports different types of tests and makes testing more manageable and meaningful.
 
-## Running the Task Management Application
+## Technical requirements
 
-### Prerequisites
-- Python 3.13 or higher
-- Optional: SendGrid account and API key (for email notifications)
+The code examples presented in this chapter and throughout the rest of the book are tested with Python version 3.13. For brevity, code examples in the chapter may be partially implemented. Complete versions of all examples can be found in the book's accompanying GitHub repository.
 
-### Installation
-1. Clone the repository
-2. Create and activate a virtual environment:
-```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
-3. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
-
-### Configuration
-The application supports configuration through environment variables:
-
-```bash
-# Repository Configuration
-export TODO_REPOSITORY_TYPE="memory"  # or "file"
-export TODO_DATA_DIR="repo_data"      # used with file repository
-
-# Optional: Email Notification Configuration
-# Will default to (offline) NotificationRecorder if not set
-export TODO_SENDGRID_API_KEY="your_api_key"
-export TODO_NOTIFICATION_EMAIL="recipient@example.com"
-```
-
-### Running the Application
-```bash
-cd Chapter_8/TodoApp
-python main.py
-```
+## Dependencies
+- Python 3.13+
+- pytest
+- pytest-xdist (for parallel test execution)
+- freezegun (for time-based testing)
 
 ## Project Structure
-The complete application structure including the Frameworks and Drivers layer:
+
+The chapter demonstrates testing patterns through our task management application, with tests organized to mirror the Clean Architecture layers:
 
 ```text
-└── todo_app
-    ├── application          # (From Chapter 5)
-    │    ├── common
-    │    ├── dtos
-    │    ├── ports
-    │    ├── repositories
-    │    └── use_cases
-    │
-    ├── domain              # (From Chapter 4)
-    │    ├── entities
-    │    ├── exceptions.py
-    │    ├── services
-    │    └── value_objects.py
-    │
-    ├── interfaces          # (From Chapter 6)
-    │    ├── controllers
-    │    ├── presenters
-    │    └── view_models
-    │
-    └── infrastructure      # (New in Chapter 7)
-         ├── cli
-         │    └── click_cli_app.py
-         ├── configuration
-         │    └── container.py
-         ├── notifications
-         │    ├── recorder.py
-         │    └── sendgrid.py
-         ├── persistence
-         │    ├── memory.py
-         │    └── file.py
-         ├── config.py
-         └── repository_factory.py
+tests
+├── application
+│   
+├── conftest.py
+├── domain
+│   └── entities
+│       └── test_task.py
+├── infrastructure
+│   └── persistence
+│       └── test_file.py
+└── interface
+    ├── controller
+    │   └── test_task_controller.py
+    └── presenters
+        └── test_cli.py
+```
+## Key Concepts Covered
+
+- Clean Architecture's impact on test organization and strategy
+- Writing focused unit tests for domain entities
+- Testing use case orchestration with mocks
+- Integration testing across architectural boundaries
+- Tools and patterns for maintaining test quality
+
+## Running the Tests
+
+Execute all tests using pytest:
+```bash
+pytest
 ```
 
-## Key Features
-- Command-line interface using Click framework
-- Choice of in-memory or file-based storage
-- Task and project management
-- Optional email notifications for task completion
+Run tests in parallel:
+```bash
+# ensure pytest-xdist is installed
+pytest -n auth
+```
 
-## Using the Application
-The application provides an interactive CLI for managing tasks and projects:
-
-1. View and select projects using numbers (e.g., "1")
-2. View and select tasks using project.task format (e.g., "1.a")
-3. Create new projects using "np" command
-4. Create tasks within projects or in the default INBOX
-5. Complete, update, and delete tasks
-6. Edit project details and manage project completion
-
-## Implementation Notes
-- The infrastructure layer demonstrates Clean Architecture's approach to external dependencies
-- Framework adapters (CLI) maintain separation from business logic
-- Repository implementations show flexible storage options
-- Optional notification services demonstrate clean integration of external services
+Run tests in random order:
+```bash
+# ensure pytest-random-order is installed
+pytest --random-order
+```

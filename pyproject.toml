@@ -7,6 +7,8 @@ requires-python = ">=3.13"
 dependencies = [
     "click>=8.1.8",
     "freezegun>=1.5.1",
+    "pytest-random-order>=1.1.1",
+    "pytest-xdist>=3.6.1",
     "python-dotenv>=1.0.1",
     "sendgrid>=6.11.0",
 ]
