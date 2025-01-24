@@ -2,8 +2,10 @@
 Enhanced Click-based CLI implementation with project actions.
 """
 
+from typing import Optional
 import click
 
+from todo_app.interfaces.view_models.task_vm import TaskViewModel
 from todo_app.interfaces.view_models.project_vm import ProjectViewModel
 from todo_app.infrastructure.configuration.container import Application
 from todo_app.domain.value_objects import Priority
@@ -86,13 +88,40 @@ class ClickCli:
                 elif choice == "2":
                     break
 
-    def _add_task_to_project(self, project: ProjectViewModel) -> None:
-        """Add a new task to the project."""
+    def _create_task(self, project_id: str) -> Optional[TaskViewModel]:
+        """Create a new task."""
         click.echo("\nAdd New Task")
         title = click.prompt("Task title", type=str)
         description = click.prompt("Description", type=str, default="")
+        priority = self._get_task_priority()
 
-        # Priority selection
+        # Create the task
+        result = self.app.task_controller.handle_create(
+            title=title,
+            description=description,
+            project_id=project_id,
+            priority=priority,
+        )
+
+        if not result.is_success:
+            click.secho(result.error.message, fg="red", err=True)
+            return
+
+        click.echo("Task created successfully!")
+        return result.success
+
+    def _add_task_to_project(self, project: ProjectViewModel) -> None:
+        """Add a new task to the project."""
+        task = self._create_task(project.id)
+        if task:
+            # Refresh projects list
+            refresh_result = self.app.project_controller.handle_list()
+            if refresh_result.is_success:
+                self.current_projects = refresh_result.success
+        click.pause()
+
+    def _get_task_priority(self) -> str:
+        """Get task priority from user input."""
         click.echo("\nPriority:")
         click.echo("[1] Low")
         click.echo("[2] Medium")
@@ -100,26 +129,7 @@ class ClickCli:
         priority_choice = click.prompt("Select priority", type=str, default="2")
 
         priority_map = {"1": "LOW", "2": "MEDIUM", "3": "HIGH"}
-        priority = priority_map.get(priority_choice, "MEDIUM")
-
-        # Create the task
-        result = self.app.task_controller.handle_create(
-            title=title,
-            description=description,
-            project_id=project.id,
-            priority=priority,
-        )
-
-        if not result.is_success:
-            click.secho(result.error.message, fg="red", err=True)
-        else:
-            click.echo("Task created successfully!")
-            # Force a refresh of the projects list
-            refresh_result = self.app.project_controller.handle_list()
-            if refresh_result.is_success:
-                self.current_projects = refresh_result.success
-
-        click.pause()
+        return priority_map.get(priority_choice, "MEDIUM")
 
     def _edit_project(self, project: ProjectViewModel) -> None:
         """Edit project details."""

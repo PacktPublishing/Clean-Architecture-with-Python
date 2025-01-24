@@ -11,3 +11,6 @@ repo_data/
 logs/
 
 .venv/
+
+# windsurf rules
+.windsurfrules
