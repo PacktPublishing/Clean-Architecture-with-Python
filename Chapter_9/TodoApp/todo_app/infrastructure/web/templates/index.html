@@ -9,7 +9,8 @@
         <div class="form-check form-switch">
             <input class="form-check-input" type="checkbox" id="showCompleted" 
                    {% if show_completed %}checked{% endif %}
-                   onchange="window.location.href='{{ url_for('todo.index', show_completed='true' if not show_completed else 'false') }}'">
+                   data-toggle-url="{{ url_for('todo.index', show_completed='true' if not show_completed else 'false') }}"
+                   onchange="window.location.href=this.dataset.toggleUrl">
             <label class="form-check-label" for="showCompleted">Show completed tasks</label>
         </div>
         <a href="{{ url_for('todo.new_project') }}" class="btn btn-primary">New Project</a>
