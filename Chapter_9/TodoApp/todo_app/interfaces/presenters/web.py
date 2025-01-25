@@ -52,9 +52,9 @@ class WebTaskPresenter(TaskPresenter):
         if not completion_date:
             return ""
 
-        base_info = completion_date.strftime("%Y-%m-%d %H:%M")
+        base_info = f"Completed on {completion_date.strftime('%Y-%m-%d %H:%M')}"
         if completion_notes:
-            return f"{base_info} - {completion_notes}"
+            return f"{base_info}\nNotes: {completion_notes}"
         return base_info
 
 

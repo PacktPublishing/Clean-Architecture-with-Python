@@ -181,7 +181,7 @@ class UpdateTaskRequest:
     def to_execution_params(self) -> dict:
         """Convert request data to use case parameters."""
         params = {"task_id": UUID(self.task_id)}
-        
+
         if self.title is not None:
             params["title"] = self.title.strip()
         if self.description is not None:
@@ -190,10 +190,14 @@ class UpdateTaskRequest:
             params["status"] = self.status
         if self.priority is not None:
             params["priority"] = self.priority
-        if self.due_date:
-            dt = datetime.fromisoformat(self.due_date)
-            if not dt.tzinfo:
-                dt = dt.replace(tzinfo=timezone.utc)
-            params["deadline"] = Deadline(dt)
-        
+        # Always include deadline in params if due_date was provided
+        if self.due_date is not None:
+            if self.due_date:  # Non-empty string
+                dt = datetime.fromisoformat(self.due_date)
+                if not dt.tzinfo:
+                    dt = dt.replace(tzinfo=timezone.utc)
+                params["deadline"] = Deadline(dt)
+            else:  # Empty string - clear the deadline
+                params["deadline"] = None
+
         return params

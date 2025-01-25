@@ -16,7 +16,7 @@ def index():
     """List all projects with their tasks."""
     app = current_app.config["APP_CONTAINER"]
     show_completed = request.args.get("show_completed", "false").lower() == "true"
-    
+
     result = app.project_controller.handle_list()
     if not result.is_success:
         error = project_presenter.present_error(result.error.message)
@@ -77,26 +77,28 @@ def new_task(project_id):
 def edit_task(task_id):
     """Edit an existing task."""
     app = current_app.config["APP_CONTAINER"]
-    
+
     if request.method == "POST":
+        # Handle empty due date - if the field is empty or just whitespace, set to empty string
+        # This ensures UpdateTaskRequest gets an empty string which it will convert to None
+        due_date = request.form.get("due_date", "").strip()
+        
         result = app.task_controller.handle_update(
             task_id=task_id,
             title=request.form["title"],
             description=request.form["description"],
             priority=request.form["priority"],
-            due_date=request.form["due_date"] if request.form["due_date"] else None
+            due_date=due_date,
         )
 
         if not result.is_success:
             error = task_presenter.present_error(result.error.message)
             flash(error.message, "error")
-            return redirect(url_for("todo.index"))
+            return redirect(url_for("todo.edit_task", task_id=task_id))
 
-        task = result.success
-        flash(f'Task "{task.title}" updated successfully', "success")
+        flash("Task updated successfully!", "success")
         return redirect(url_for("todo.index"))
 
-    # GET request - show edit form
     result = app.task_controller.handle_get(task_id)
     if not result.is_success:
         error = task_presenter.present_error(result.error.message)
@@ -108,33 +110,21 @@ def edit_task(task_id):
 
 @bp.route("/tasks/<task_id>/complete", methods=["POST"])
 def complete_task(task_id):
-    """Toggle task completion status."""
+    """Complete a task."""
     app = current_app.config["APP_CONTAINER"]
     
-    # First get the current task to check its status
-    result = app.task_controller.handle_get(task_id)
-    if not result.is_success:
-        error = task_presenter.present_error(result.error.message)
-        flash(error.message, "error")
-        return redirect(url_for("todo.index", show_completed=request.args.get("show_completed", "false")))
-        
-    task = result.success
-    is_completed = task.status_display == "DONE"
+    # Complete the task with optional notes
+    result = app.task_controller.handle_complete(
+        task_id=task_id, notes=request.form.get("completion_notes")
+    )
     
-    # Now update the task status
-    if is_completed:
-        # If task is completed, set it back to TODO
-        result = app.task_controller.handle_update(task_id=task_id, status="TODO")
-    else:
-        # If task is not completed, mark it as done
-        result = app.task_controller.handle_complete(task_id)
-
     if not result.is_success:
         error = task_presenter.present_error(result.error.message)
         flash(error.message, "error")
     else:
         task = result.success
-        action = "uncompleted" if is_completed else "completed"
-        flash(f'Task "{task.title}" {action}', "success")
+        flash(f'"{task.title}" marked as complete', "success")
 
-    return redirect(url_for("todo.index", show_completed=request.args.get("show_completed", "false")))
+    return redirect(
+        url_for("todo.index", show_completed=request.args.get("show_completed", "false"))
+    )
