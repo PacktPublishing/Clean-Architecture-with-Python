@@ -191,9 +191,6 @@ class FileProjectRepository(ProjectRepository):
         # Explicitly set ID to maintain consistency
         project.id = UUID(data["id"])
 
-        # Load associated tasks
-        self._load_project_tasks(project)
-
         return project
 
     def get(self, project_id: UUID) -> Project:
@@ -201,12 +198,20 @@ class FileProjectRepository(ProjectRepository):
         projects = self._load_projects()
         for project_data in projects:
             if UUID(project_data["id"]) == project_id:
-                return self._dict_to_project(project_data)
+                project = self._dict_to_project(project_data)
+                # Load tasks only if task repo is set
+                if self._task_repo:
+                    self._load_project_tasks(project)
+                return project
         raise ProjectNotFoundError(project_id)
 
     def get_all(self) -> List[Project]:
         """Get all projects with their tasks loaded."""
         projects = [self._dict_to_project(p) for p in self._load_projects()]
+        # Load tasks after all projects are loaded and task repo is set
+        if self._task_repo:
+            for project in projects:
+                self._load_project_tasks(project)
         return projects
 
     def save(self, project: Project) -> None:
