@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+
+{% block title %}Projects{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Projects</h1>
+    <div class="d-flex gap-3 align-items-center">
+        <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="showCompleted" 
+                   {% if show_completed %}checked{% endif %}
+                   onchange="window.location.href='{{ url_for('todo.index', show_completed='true' if not show_completed else 'false') }}'">
+            <label class="form-check-label" for="showCompleted">Show completed tasks</label>
+        </div>
+        <a href="{{ url_for('todo.new_project') }}" class="btn btn-primary">New Project</a>
+    </div>
+</div>
+
+{% for project in projects %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h2 class="card-title h5 mb-0">{{ project.name }}</h2>
+    </div>
+    <div class="card-body">
+        <div class="list-group">
+            {% for task in project.tasks %}
+                {% if show_completed or task.status_display != 'DONE' %}
+                <div class="list-group-item">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center gap-3">
+                            <form method="post" action="{{ url_for('todo.complete_task', task_id=task.id, show_completed=show_completed) }}" 
+                                  style="margin: 0">
+                                <button type="submit" class="btn btn-outline-success btn-sm" title="{{ 'Mark as incomplete' if task.status_display == 'DONE' else 'Mark as complete' }}">
+                                    {% if task.status_display == 'DONE' %}
+                                    <i class="bi bi-check-circle-fill"></i>
+                                    {% else %}
+                                    <i class="bi bi-check-lg"></i>
+                                    {% endif %}
+                                </button>
+                            </form>
+                            
+                            <h3 class="h6 mb-0 {% if task.status_display == 'DONE' %}text-decoration-line-through text-muted{% endif %}">
+                                <a href="{{ url_for('todo.edit_task', task_id=task.id) }}" class="text-decoration-none {% if task.status_display == 'DONE' %}text-muted{% endif %}">
+                                    {{ task.title }}
+                                    {% if task.status_display != 'DONE' %}
+                                    <small class="text-muted">(edit)</small>
+                                    {% endif %}
+                                </a>
+                            </h3>
+                        </div>
+                        <div>
+                            <span class="badge bg-{{ 'success' if task.status_display == 'DONE' else 'primary' }}">{{ task.status_display }}</span>
+                            <span class="badge bg-secondary">{{ task.priority_display }}</span>
+                            {% if task.due_date_display %}
+                            <span class="badge bg-info">{{ task.due_date_display }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% if task.description and task.status_display != 'DONE' %}
+                    <p class="text-muted small mb-0 mt-1">{{ task.description|truncate(100) }}</p>
+                    {% endif %}
+                </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+        <div class="mt-3">
+            <a href="{{ url_for('todo.new_task', project_id=project.id) }}" class="btn btn-sm btn-outline-primary">Add Task</a>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endblock %}

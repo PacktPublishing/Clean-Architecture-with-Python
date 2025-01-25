@@ -117,6 +117,7 @@ class TaskController:
         description: Optional[str] = None,
         status: Optional[str] = None,
         priority: Optional[str] = None,
+        due_date: Optional[str] = None,
     ) -> OperationResult[TaskViewModel]:
         try:
             # Convert string status/priority to enums if provided
@@ -129,6 +130,7 @@ class TaskController:
                 description=description,
                 status=status_enum,
                 priority=priority_enum,
+                due_date=due_date,
             )
             result = self.update_use_case.execute(request)
             if result.is_success:

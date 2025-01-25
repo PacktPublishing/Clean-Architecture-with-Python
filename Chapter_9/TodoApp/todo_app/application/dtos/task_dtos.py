@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional, Self
 from uuid import UUID
+from dateutil import tz
+from datetime import timezone
 
 from todo_app.domain.entities.task import Task
 from todo_app.domain.value_objects import Deadline, Priority, TaskStatus
@@ -38,7 +40,7 @@ class CompleteTaskRequest:
         }
 
 
-@dataclass(frozen=True)
+@dataclass
 class CreateTaskRequest:
     """Request data for creating a new task."""
 
@@ -70,7 +72,11 @@ class CreateTaskRequest:
         }
 
         if self.due_date:
-            params["deadline"] = Deadline(datetime.fromisoformat(self.due_date))
+            # Create timezone-aware datetime in UTC
+            dt = datetime.fromisoformat(self.due_date)
+            if not dt.tzinfo:
+                dt = dt.replace(tzinfo=tz.tzutc())
+            params["deadline"] = Deadline(dt)
 
         if self.priority:
             params["priority"] = Priority[self.priority.upper()]
@@ -153,6 +159,7 @@ class UpdateTaskRequest:
     description: Optional[str] = None
     status: Optional[TaskStatus] = None
     priority: Optional[Priority] = None
+    due_date: Optional[str] = None
 
     def __post_init__(self) -> None:
         """Validate request data"""
@@ -165,3 +172,28 @@ class UpdateTaskRequest:
                 raise ValueError("Title cannot exceed 200 characters")
         if self.description is not None and len(self.description) > 2000:
             raise ValueError("Description cannot exceed 2000 characters")
+        if self.due_date:
+            try:
+                datetime.fromisoformat(self.due_date)
+            except ValueError:
+                raise ValueError("Invalid due date format")
+
+    def to_execution_params(self) -> dict:
+        """Convert request data to use case parameters."""
+        params = {"task_id": UUID(self.task_id)}
+        
+        if self.title is not None:
+            params["title"] = self.title.strip()
+        if self.description is not None:
+            params["description"] = self.description.strip()
+        if self.status is not None:
+            params["status"] = self.status
+        if self.priority is not None:
+            params["priority"] = self.priority
+        if self.due_date:
+            dt = datetime.fromisoformat(self.due_date)
+            if not dt.tzinfo:
+                dt = dt.replace(tzinfo=timezone.utc)
+            params["deadline"] = Deadline(dt)
+        
+        return params
