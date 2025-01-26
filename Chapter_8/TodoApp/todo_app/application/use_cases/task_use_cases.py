@@ -136,24 +136,27 @@ class UpdateTaskUseCase:
 
     def execute(self, request: UpdateTaskRequest) -> Result[TaskResponse]:
         try:
-            task = self.task_repository.get(UUID(request.task_id))
+            params = request.to_execution_params()
+            task = self.task_repository.get(params["task_id"])
 
-            if request.title is not None:
-                task.title = request.title.strip()
-            if request.description is not None:
-                task.description = request.description.strip()
-            if request.status is not None:
-                task.status = request.status
-            if request.priority is not None:
-                task.priority = request.priority
+            if params.get("title") is not None:
+                task.title = params["title"]
+            if params.get("description") is not None:
+                task.description = params["description"]
+            if params.get("status") is not None:
+                task.status = params["status"]
+            if params.get("priority") is not None:
+                task.priority = params["priority"]
                 if task.priority == Priority.HIGH:
                     self.notification_service.notify_task_high_priority(task)
+            if "deadline" in params:
+                task.due_date = params["deadline"]
 
             self.task_repository.save(task)
             return Result.success(TaskResponse.from_entity(task))
 
         except TaskNotFoundError:
-            return Result.failure(Error.not_found("Task", request.task_id))
+            return Result.failure(Error.not_found("Task", str(params["task_id"])))
         except ValidationError as e:
             return Result.failure(Error.validation_error(str(e)))
         except BusinessRuleViolation as e:
