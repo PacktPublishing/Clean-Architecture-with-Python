@@ -47,7 +47,7 @@ def new_project():
     return render_template("project_form.html")
 
 
-@bp.route("/projects/<project_id>/tasks/new", methods=["GET", "POST"])
+@bp.route("/projects/<project_id>/task  s/new", methods=["GET", "POST"])
 def new_task(project_id):
     """Create a new task in a project."""
     if request.method == "POST":

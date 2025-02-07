@@ -1,11 +1,4 @@
-"""
-Flask web application setup for the Todo App.
-"""
-
-from flask import Flask
-from todo_app.infrastructure.configuration.container import Application
-
-
+# todo_app/infrastructure/web/app.py
 def create_web_app(app_container: Application) -> Flask:
     """Create and configure Flask application."""
     flask_app = Flask(__name__)
