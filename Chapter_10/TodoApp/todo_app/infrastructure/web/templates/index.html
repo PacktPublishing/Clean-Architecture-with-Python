@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+
+{% block title %}Projects{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Projects</h1>
+    <div class="d-flex gap-3 align-items-center">
+        <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="showCompleted" {% if show_completed %}checked{% endif %} onchange="window.location.href='{{ url_for('todo.index', show_completed='true' if not show_completed else 'false') }}'">
+            <label class="form-check-label" for="showCompleted">Show completed tasks</label>
+        </div>
+        <a href="{{ url_for('todo.new_project') }}" class="btn btn-primary">New Project</a>
+    </div>
+</div>
+
+{% for project in projects %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h2 class="card-title h5 mb-0">{{ project.name }}</h2>
+    </div>
+    <div class="card-body">
+        <div class="list-group">
+            {% for task in project.tasks %}
+            {% if show_completed or task.status_display != 'DONE' %}
+            <div class="list-group-item">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center gap-3">
+                        {% if not task.status_display == 'DONE' %}
+                        <button type="button" class="btn btn-outline-success btn-sm" title="Mark as complete"
+                            onclick="showCompleteModal('{{ task.id }}', '{{ task.title }}')"
+                            data-task-id="{{ task.id }}" data-task-title="{{ task.title }}">
+                            <i class="bi bi-circle"></i>
+                        </button>
+                        {% endif %}
+
+                        <h3 class="h6 mb-0 {% if task.status_display == 'DONE' %}text-decoration-line-through text-muted{% endif %}">
+                            {% if task.status_display == 'DONE' %}
+                                {{ task.title }}
+                            {% else %}
+                                <a href="{{ url_for('todo.edit_task', task_id=task.id) }}" class="text-decoration-none">
+                                    {{ task.title }}
+                                </a>
+                            {% endif %}
+                        </h3>
+                    </div>
+                    <div>
+                        <span class="badge bg-{{ 'success' if task.status_display == 'DONE' else 'primary' }}">{{
+                            task.status_display }}</span>
+                        <span class="badge bg-secondary">{{ task.priority_display }}</span>
+                        {% if task.due_date_display %}
+                        <span class="badge bg-info">{{ task.due_date_display }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% if task.status_display != 'DONE' and task.description %}
+                <p class="text-muted small mb-0 mt-1">{{ task.description|truncate(100) }}</p>
+                {% endif %}
+                {% if task.status_display == 'DONE' and task.completion_info %}
+                <p class="text-muted small mb-0 mt-1">
+                    {{ task.completion_info }}
+                </p>
+                {% endif %}
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+        <div class="mt-3">
+            <a href="{{ url_for('todo.new_task', project_id=project.id) }}" class="btn btn-sm btn-outline-primary">Add
+                Task</a>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+<!-- Complete Task Modal -->
+<div class="modal fade" id="completeTaskModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" id="completeTaskForm">
+                <div class="modal-header">
+                    <h5 class="modal-title">Complete Task</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Complete task: <strong id="taskTitle"></strong></p>
+                    <div class="mb-3">
+                        <label for="completionNotes" class="form-label">Completion Notes (optional)</label>
+                        <textarea class="form-control" id="completionNotes" name="completion_notes" rows="3"
+                            placeholder="Add any notes about task completion..."></textarea>
+                    </div>
+                    <input type="hidden" name="show_completed" value="{{ 'true' if show_completed else 'false' }}">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">Complete Task</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Initialize modal
+    const completeTaskModal = new bootstrap.Modal(document.getElementById('completeTaskModal'));
+
+    // Function to show modal and set up form
+    function showCompleteModal(taskId, taskTitle) {
+        // Update modal content
+        document.getElementById('taskTitle').textContent = taskTitle;
+
+        // Set up form action - use the complete URL from Flask
+        const form = document.getElementById('completeTaskForm');
+        const url = "{{ url_for('todo.complete_task', task_id='TASK_ID', show_completed=show_completed) }}";
+        form.action = url.replace('TASK_ID', taskId);
+
+        // Show modal
+        completeTaskModal.show();
+
+        // Debug output
+        console.log('Form action:', form.action);
+        console.log('Task ID:', taskId);
+        console.log('Task Title:', taskTitle);
+    }
+</script>
+{% endblock %}
