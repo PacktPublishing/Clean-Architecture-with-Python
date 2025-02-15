@@ -25,6 +25,8 @@ class Config:
     # Default values
     DEFAULT_REPOSITORY_TYPE: RepositoryType = RepositoryType.MEMORY
     DEFAULT_DATA_DIR = "repo_data"
+    DEFAULT_LOG_DIR = "logs"  # Relative to where app is run
+    DEFAULT_LOG_FILE = "todo_app.log"
 
     @classmethod
     def get_repository_type(cls) -> RepositoryType:
@@ -52,3 +54,18 @@ class Config:
     def get_notification_email(cls) -> str:
         """Get the notification recipient email."""
         return os.getenv("TODO_NOTIFICATION_EMAIL", "")
+
+    @classmethod
+    def get_log_file_path(cls) -> Path:
+        """Get the log file path.
+
+        Returns:
+            Path to log file, creating parent directories if needed.
+        """
+        log_dir = Path(os.getenv("TODO_LOG_DIR", cls.DEFAULT_LOG_DIR))
+        log_file = os.getenv("TODO_LOG_FILE", cls.DEFAULT_LOG_FILE)
+
+        # Ensure log directory exists
+        log_dir.mkdir(parents=True, exist_ok=True)
+
+        return log_dir / log_file

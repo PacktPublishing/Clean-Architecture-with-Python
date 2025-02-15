@@ -31,6 +31,7 @@ from todo_app.domain.exceptions import (
     BusinessRuleViolation,
 )
 from todo_app.domain.value_objects import Priority
+from todo_app.application.service_ports.logger import Logger
 
 
 @dataclass
@@ -73,16 +74,26 @@ class CompleteTaskUseCase:
 class CreateTaskUseCase:
     task_repository: TaskRepository
     project_repository: ProjectRepository
+    logger: Logger
 
     def execute(self, request: CreateTaskRequest) -> Result:
         try:
+            self.logger.info(
+                "Creating new task",
+                extra={"title": request.title, "project_id": request.project_id},
+            )
+
             params = request.to_execution_params()
             project_id = params.get("project_id")
 
             if not project_id:
                 project_id = self.project_repository.get_inbox().id
             else:
-                self.project_repository.get(project_id)  # Verify exists
+                try:
+                    self.project_repository.get(project_id)  # Verify exists
+                except ProjectNotFoundError:
+                    self.logger.error("Project not found", extra={"project_id": str(project_id)})
+                    return Result.failure(Error.not_found("Project", str(project_id)))
 
             task = Task(
                 title=params["title"],
@@ -91,14 +102,25 @@ class CreateTaskUseCase:
                 due_date=params.get("deadline"),
                 priority=params.get("priority", Priority.MEDIUM),
             )
+
             self.task_repository.save(task)
+
+            self.logger.info(
+                "Task created successfully",
+                extra={
+                    "task_id": str(task.id),
+                    "project_id": str(project_id),
+                    "priority": task.priority.name,
+                },
+            )
+
             return Result.success(TaskResponse.from_entity(task))
 
-        except ProjectNotFoundError:
-            return Result.failure(Error.not_found("Project", str(project_id)))
         except ValidationError as e:
+            self.logger.error("Task creation validation error", extra={"error": str(e)})
             return Result.failure(Error.validation_error(str(e)))
         except BusinessRuleViolation as e:
+            self.logger.error("Task creation business rule violation", extra={"error": str(e)})
             return Result.failure(Error.business_rule_violation(str(e)))
 
 

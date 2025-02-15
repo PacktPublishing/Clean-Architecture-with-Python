@@ -18,9 +18,10 @@ def main():
         notification_service=notification_service,
         task_presenter=task_presenter,
         project_presenter=project_presenter,
+        app_context="WEB",
     )
     web_app = create_web_app(app_container)
-    web_app.run(debug=True)
+    web_app.run(debug=True, use_reloader=False)  # Disable reloader for consistent logging
 
 
 if __name__ == "__main__":
