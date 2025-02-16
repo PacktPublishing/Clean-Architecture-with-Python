@@ -13,6 +13,7 @@ from todo_app.infrastructure.cli.click_cli_app import ClickCli
 from todo_app.infrastructure.configuration.container import create_application
 from todo_app.infrastructure.notifications.recorder import NotificationRecorder
 from todo_app.interfaces.presenters.cli import CliTaskPresenter, CliProjectPresenter
+from todo_app.infrastructure.logging.config import configure_logging
 
 
 def main() -> int:
@@ -23,6 +24,7 @@ def main() -> int:
         Exit code (0 for success, non-zero for errors)
     """
     try:
+        configure_logging(app_context="CLI")
         # Create application with dependencies
         app = create_application(
             notification_service=NotificationRecorder(),

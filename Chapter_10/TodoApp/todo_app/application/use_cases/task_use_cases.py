@@ -31,7 +31,10 @@ from todo_app.domain.exceptions import (
     BusinessRuleViolation,
 )
 from todo_app.domain.value_objects import Priority
-from todo_app.application.service_ports.logger import Logger
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -74,11 +77,10 @@ class CompleteTaskUseCase:
 class CreateTaskUseCase:
     task_repository: TaskRepository
     project_repository: ProjectRepository
-    logger: Logger
 
     def execute(self, request: CreateTaskRequest) -> Result:
         try:
-            self.logger.info(
+            logger.info(
                 "Creating new task",
                 extra={"title": request.title, "project_id": request.project_id},
             )
@@ -92,7 +94,7 @@ class CreateTaskUseCase:
                 try:
                     self.project_repository.get(project_id)  # Verify exists
                 except ProjectNotFoundError:
-                    self.logger.error("Project not found", extra={"project_id": str(project_id)})
+                    logger.error("Project not found", extra={"project_id": str(project_id)})
                     return Result.failure(Error.not_found("Project", str(project_id)))
 
             task = Task(
@@ -105,7 +107,7 @@ class CreateTaskUseCase:
 
             self.task_repository.save(task)
 
-            self.logger.info(
+            logger.info(
                 "Task created successfully",
                 extra={
                     "task_id": str(task.id),
@@ -117,10 +119,10 @@ class CreateTaskUseCase:
             return Result.success(TaskResponse.from_entity(task))
 
         except ValidationError as e:
-            self.logger.error("Task creation validation error", extra={"error": str(e)})
+            logger.error("Task creation validation error", extra={"error": str(e)})
             return Result.failure(Error.validation_error(str(e)))
         except BusinessRuleViolation as e:
-            self.logger.error("Task creation business rule violation", extra={"error": str(e)})
+            logger.error("Task creation business rule violation", extra={"error": str(e)})
             return Result.failure(Error.business_rule_violation(str(e)))
 
 

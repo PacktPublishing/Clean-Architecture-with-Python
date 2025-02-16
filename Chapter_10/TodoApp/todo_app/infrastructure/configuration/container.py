@@ -26,8 +26,11 @@ from todo_app.application.use_cases.task_use_cases import (
 from todo_app.interfaces.controllers.project_controller import ProjectController
 from todo_app.interfaces.controllers.task_controller import TaskController
 from todo_app.infrastructure.repository_factory import create_repositories
-from todo_app.infrastructure.logging.base import ApplicationLogger
-from todo_app.infrastructure.logging.structured import StructuredLogger
+
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def create_application(
@@ -49,8 +52,6 @@ def create_application(
         Configured Application instance
     """
     task_repository, project_repository = create_repositories()
-    # logger = ApplicationLogger(app_context=app_context)
-    logger = StructuredLogger(app_context=app_context)
 
     # Create notification service with automatic fallback
     notification_service = create_notification_service()
@@ -61,7 +62,6 @@ def create_application(
         notification_service=notification_service,
         task_presenter=task_presenter,
         project_presenter=project_presenter,
-        logger=logger,
     )
 
 
@@ -74,15 +74,13 @@ class Application:
     notification_service: NotificationPort
     task_presenter: TaskPresenter
     project_presenter: ProjectPresenter
-    logger: ApplicationLogger
+    # logger: ApplicationLogger
 
     def __post_init__(self):
         """Wire up use cases and controllers."""
 
         # Configure task use cases
-        self.create_task_use_case = CreateTaskUseCase(
-            self.task_repository, self.project_repository, self.logger
-        )
+        self.create_task_use_case = CreateTaskUseCase(self.task_repository, self.project_repository)
 
         self.complete_task_use_case = CompleteTaskUseCase(
             self.task_repository, self.notification_service
