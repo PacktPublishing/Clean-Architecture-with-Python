@@ -9,6 +9,7 @@ from todo_app.interfaces.view_models.task_vm import TaskViewModel
 from todo_app.interfaces.view_models.project_vm import ProjectViewModel
 from todo_app.infrastructure.configuration.container import Application
 from todo_app.domain.value_objects import Priority
+from todo_app.infrastructure.logging.trace import set_trace_id, get_trace_id
 
 
 class ClickCli:
@@ -19,6 +20,9 @@ class ClickCli:
     def run(self) -> int:
         """Entry point for running the Click CLI application"""
         try:
+            # Set trace ID for CLI session
+            set_trace_id()
+
             while True:
                 self._display_projects()
                 self._handle_selection()

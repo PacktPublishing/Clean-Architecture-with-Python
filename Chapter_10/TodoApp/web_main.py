@@ -24,7 +24,7 @@ def main():
         app_context="WEB",
     )
     web_app = create_web_app(app_container)
-    web_app.run(debug=True, use_reloader=False)  # Disable reloader for consistent logging
+    web_app.run(debug=True)
 
 
 if __name__ == "__main__":

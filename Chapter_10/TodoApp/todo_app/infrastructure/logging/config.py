@@ -5,6 +5,25 @@ import json
 import logging
 from datetime import datetime, timezone
 from typing import Literal
+from uuid import UUID
+from todo_app.infrastructure.logging.trace import get_trace_id
+
+
+class JsonLogEncoder(json.JSONEncoder):
+    """Custom JSON encoder for log records."""
+
+    def default(self, o):
+        # Handle common types that json.dumps can't handle natively
+        if isinstance(o, datetime):
+            return o.isoformat()
+        if isinstance(o, UUID):
+            return str(o)
+        if isinstance(o, set):
+            return list(o)
+        if isinstance(o, Exception):
+            return str(o)
+        # Let the base class handle anything else
+        return super().default(o)
 
 
 class JsonFormatter(logging.Formatter):
@@ -13,22 +32,23 @@ class JsonFormatter(logging.Formatter):
     def __init__(self, app_context: str):
         super().__init__()
         self.app_context = app_context
+        self.encoder = JsonLogEncoder()
 
     def format(self, record: logging.LogRecord) -> str:
         """Format log record as JSON."""
         log_data = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(timezone.utc),  # Let encoder handle datetime
             "level": record.levelname,
             "logger": record.name,
             "message": record.getMessage(),
-            "source": self.app_context,
+            "app_context": self.app_context,
+            "trace_id": get_trace_id(),
         }
 
-        # Add extra context if present
         if hasattr(record, "extra"):
             log_data.update(record.extra)
 
-        return json.dumps(log_data)
+        return self.encoder.encode(log_data)
 
 
 def configure_logging(app_context: Literal["CLI", "WEB"]) -> None:
@@ -45,7 +65,10 @@ def configure_logging(app_context: Literal["CLI", "WEB"]) -> None:
         "version": 1,
         "formatters": {
             "json": {"()": JsonFormatter, "app_context": app_context},
-            "standard": {"format": "%(message)s"},
+            "standard": {
+                "format": "%(asctime)s [%(trace_id)s] %(message)s",
+                "datefmt": "%Y-%m-%d %H:%M:%S",
+            },
         },
         "handlers": {
             # Standard console output (for Flask)
