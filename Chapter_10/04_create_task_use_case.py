@@ -14,10 +14,10 @@ class CreateTaskUseCase:
             
             logger.info(
                 "Task created successfully",
-                extra={
+                extra={"context":{
                     "task_id": str(task.id),
                     "project_id": str(project_id),
                     "priority": task.priority.name,
-                },
+                }},
             )
-        # ... remainder of method
+            # ... remainder of method

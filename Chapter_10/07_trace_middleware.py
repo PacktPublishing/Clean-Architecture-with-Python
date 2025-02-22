@@ -5,6 +5,7 @@ def trace_requests(app):
     @app.before_request
     def before_request():
         trace_id = request.headers.get("X-Trace-ID") or None
+        # pull trace id from globals
         g.trace_id = set_trace_id(trace_id)
 
     @app.after_request

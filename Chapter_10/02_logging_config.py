@@ -1,4 +1,12 @@
 # todo_app/infrastructure/logging/config.py
+from logging.config import dictConfig
+from pathlib import Path
+import json
+import logging
+from datetime import datetime, timezone
+from typing import Literal
+from uuid import UUID
+from todo_app.infrastructure.logging.trace import get_trace_id
 
 
 class JsonLogEncoder(json.JSONEncoder):
@@ -37,8 +45,21 @@ class JsonFormatter(logging.Formatter):
             "trace_id": get_trace_id(),
         }
 
-        if hasattr(record, "extra"):
-            log_data.update(record.extra)
+        # When logging with extra parameters (e.g., logger.info("msg", extra={"context": {...}})),
+        # Python's logging mechanism adds these parameters directly as attributes to the LogRecord
+        # object. This means extra={"context": {"key": "value"}} becomes accessible as
+        # record.context rather than record.extra.context.
+        #
+        # This approach helps avoid naming collisions with LogRecord's built-in attributes
+        # (like 'msg', 'args', 'exc_info', etc.) by namespacing our custom data under 'context'.
+        context = {}
+        for key, value in record.__dict__.items():
+            if key == "context":
+                context = value
+                break
+
+        if context:
+            log_data["context"] = context
 
         return self.encoder.encode(log_data)
 

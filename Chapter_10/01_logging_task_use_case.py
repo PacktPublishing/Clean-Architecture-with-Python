@@ -12,6 +12,8 @@ class CreateTaskUseCase:
         try:
             logger.info(
                 "Creating new task",
-                extra={"title": request.title, "project_id": request.project_id},
+                extra={"context": {
+                  "title": request.title, "project_id": request.project_id
+                }},
             )
             # ... implementation continues ...

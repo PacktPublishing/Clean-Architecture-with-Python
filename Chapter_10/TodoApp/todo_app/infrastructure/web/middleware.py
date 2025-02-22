@@ -15,6 +15,7 @@ def trace_requests(flask_app):
     @flask_app.before_request
     def before_request():
         trace_id = request.headers.get("X-Trace-ID") or None
+        # pull trace id from globals
         g.trace_id = set_trace_id(trace_id)
 
     @flask_app.after_request
