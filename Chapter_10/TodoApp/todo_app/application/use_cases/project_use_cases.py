@@ -31,6 +31,10 @@ from todo_app.domain.exceptions import (
     ProjectNotFoundError,
 )
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 @dataclass
 class CreateProjectUseCase:
@@ -42,16 +46,22 @@ class CreateProjectUseCase:
         """Execute the use case."""
         try:
             params = request.to_execution_params()
+            logger.info("Creating new project", extra={"context": {"name": params["name"]}})
 
             project = Project(name=params["name"], description=params["description"])
-
             self.project_repository.save(project)
 
+            logger.info(
+                "Project created successfully",
+                extra={"context": {"project_id": str(project.id), "name": project.name}},
+            )
             return Result.success(ProjectResponse.from_entity(project))
 
         except ValidationError as e:
+            logger.error("Validation error creating project", extra={"context": {"error": str(e)}})
             return Result.failure(Error.validation_error(str(e)))
         except BusinessRuleViolation as e:
+            logger.error("Business rule violation creating project", extra={"context": {"error": str(e)}})
             return Result.failure(Error.business_rule_violation(str(e)))
 
 
@@ -67,6 +77,7 @@ class CompleteProjectUseCase:
         """Execute the use case."""
         try:
             params = request.to_execution_params()
+            logger.info("Completing project", extra={"context": {"project_id": str(params["project_id"])}})
             project = self.project_repository.get(params["project_id"])
 
             # Take snapshots of initial state
@@ -79,23 +90,39 @@ class CompleteProjectUseCase:
                     task.complete()
                     self.task_repository.save(task)
 
-                project.mark_completed(
-                    notes=params["completion_notes"],
-                )
-
+                project.mark_completed(notes=params["completion_notes"])
                 self.project_repository.save(project)
+
                 for task in project_snapshot.incomplete_tasks:
                     self.notification_service.notify_task_completed(task)
+
+                logger.info(
+                    "Project completed successfully",
+                    extra={
+                        "context": {
+                            "project_id": str(project.id),
+                            "tasks_completed": len(project_snapshot.incomplete_tasks),
+                        }
+                    },
+                )
                 return Result.success(CompleteProjectResponse.from_entity(project))
 
             except (ValidationError, BusinessRuleViolation) as e:
                 # Restore project state
+                logger.error(
+                    "Failed to complete project",
+                    extra={"context": {"project_id": str(project.id), "error": str(e)}},
+                )
                 for task_id, task_snapshot in task_snapshots.items():
                     self.task_repository.save(task_snapshot)
                 self.project_repository.save(project_snapshot)
                 raise  # Re-raise the exception to be caught by outer try block
 
         except ProjectNotFoundError:
+            logger.error(
+                "Project not found",
+                extra={"context": {"project_id": str(params["project_id"])}},
+            )
             return Result.failure(Error.not_found("Project", str(params["project_id"])))
         except ValidationError as e:
             return Result.failure(Error.validation_error(str(e)))
@@ -122,9 +149,11 @@ class GetProjectUseCase:
             - Failure: Error information
         """
         try:
+            logger.info("Retrieving project details", extra={"context": {"project_id": project_id}})
             project = self.project_repository.get(UUID(project_id))
             return Result.success(ProjectResponse.from_entity(project))
         except ProjectNotFoundError:
+            logger.error("Project not found", extra={"context": {"project_id": project_id}})
             return Result.failure(Error.not_found("Project", project_id))
 
 
@@ -142,9 +171,12 @@ class ListProjectsUseCase:
             - Failure: Error information
         """
         try:
+            logger.info("Retrieving all projects")
             projects = self.project_repository.get_all()
+            logger.info("Projects retrieved successfully", extra={"context": {"count": len(projects)}})
             return Result.success([ProjectResponse.from_entity(p) for p in projects])
         except Exception as e:
+            logger.error("Failed to retrieve projects", extra={"context": {"error": str(e)}})
             return Result.failure(Error.business_rule_violation(str(e)))
 
 
@@ -158,25 +190,54 @@ class UpdateProjectUseCase:
         """Execute the use case."""
         try:
             params = request.to_execution_params()
+            logger.info("Updating project", extra={"context": {"project_id": str(params["project_id"])}})
             project = self.project_repository.get(params["project_id"])
 
             # Prevent editing of INBOX project
             if project.project_type == ProjectType.INBOX:
+                logger.warning(
+                    "Attempted to modify INBOX project",
+                    extra={"context": {"project_id": str(project.id)}},
+                )
                 return Result.failure(
                     Error.business_rule_violation("The INBOX project cannot be modified")
                 )
 
+            updated_fields = []
             if params["name"] is not None:
                 project.name = params["name"]
+                updated_fields.append("name")
             if params["description"] is not None:
                 project.description = params["description"]
+                updated_fields.append("description")
 
             self.project_repository.save(project)
+            logger.info(
+                "Project updated successfully",
+                extra={
+                    "context": {
+                        "project_id": str(project.id),
+                        "updated_fields": updated_fields,
+                    }
+                },
+            )
             return Result.success(ProjectResponse.from_entity(project))
 
         except ProjectNotFoundError:
+            logger.error(
+                "Project not found",
+                extra={"context": {"project_id": str(params["project_id"])}},
+            )
             return Result.failure(Error.not_found("Project", str(params["project_id"])))
         except ValidationError as e:
+            logger.error(
+                "Validation error updating project",
+                extra={"context": {"project_id": str(params["project_id"]), "error": str(e)}},
+            )
             return Result.failure(Error.validation_error(str(e)))
         except BusinessRuleViolation as e:
+            logger.error(
+                "Business rule violation updating project",
+                extra={"context": {"project_id": str(params["project_id"]), "error": str(e)}},
+            )
             return Result.failure(Error.business_rule_violation(str(e)))

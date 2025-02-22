@@ -33,6 +33,10 @@ from todo_app.application.use_cases.task_use_cases import (
 )
 from todo_app.interfaces.view_models.task_vm import TaskViewModel
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 @dataclass
 class TaskController:
@@ -54,6 +58,16 @@ class TaskController:
         due_date: Optional[str] = None,
     ) -> OperationResult[TaskViewModel]:
         try:
+            logger.info(
+                "Handling task creation request",
+                extra={
+                    "context": {
+                        "title": title,
+                        "project_id": project_id,
+                        "priority": priority,
+                    }
+                },
+            )
             request = CreateTaskRequest(
                 title=title,
                 description=description,
@@ -64,28 +78,68 @@ class TaskController:
             result = self.create_use_case.execute(request)
             if result.is_success:
                 view_model = self.presenter.present_task(result.value)
+                logger.info(
+                    "Task creation handled successfully",
+                    extra={"context": {"task_id": str(result.value.id)}},
+                )
                 return OperationResult.succeed(view_model)
 
+            logger.error(
+                "Task creation failed",
+                extra={
+                    "context": {
+                        "title": title,
+                        "error": result.error.message,
+                        "error_code": str(result.error.code.name),
+                    }
+                },
+            )
             error_vm = self.presenter.present_error(
                 result.error.message, str(result.error.code.name)
             )
             return OperationResult.fail(error_vm.message, error_vm.code)
         except ValueError as e:
+            logger.error(
+                "Validation error in task creation",
+                extra={"context": {"title": title, "error": str(e)}},
+            )
             error_vm = self.presenter.present_error(str(e), "VALIDATION_ERROR")
             return OperationResult.fail(error_vm.message, error_vm.code)
 
     def handle_get(self, task_id: str) -> OperationResult[TaskViewModel]:
         try:
+            logger.info(
+                "Handling task retrieval request",
+                extra={"context": {"task_id": task_id}},
+            )
             result = self.get_use_case.execute(UUID(task_id))
             if result.is_success:
                 view_model = self.presenter.present_task(result.value)
+                logger.info(
+                    "Task retrieval handled successfully",
+                    extra={"context": {"task_id": task_id}},
+                )
                 return OperationResult.succeed(view_model)
 
+            logger.error(
+                "Task retrieval failed",
+                extra={
+                    "context": {
+                        "task_id": task_id,
+                        "error": result.error.message,
+                        "error_code": str(result.error.code.name),
+                    }
+                },
+            )
             error_vm = self.presenter.present_error(
                 result.error.message, str(result.error.code.name)
             )
             return OperationResult.fail(error_vm.message, error_vm.code)
         except ValueError as e:
+            logger.error(
+                "Validation error in task retrieval",
+                extra={"context": {"task_id": task_id, "error": str(e)}},
+            )
             error_vm = self.presenter.present_error(str(e), "VALIDATION_ERROR")
             return OperationResult.fail(error_vm.message, error_vm.code)
 
@@ -94,19 +148,41 @@ class TaskController:
     ) -> OperationResult[TaskViewModel]:
         """Handle task completion requests."""
         try:
+            logger.info(
+                "Handling task completion request",
+                extra={"context": {"task_id": task_id}},
+            )
             request = CompleteTaskRequest(task_id=task_id, completion_notes=notes)
             result = self.complete_use_case.execute(request)
 
             if result.is_success:
                 view_model = self.presenter.present_task(result.value)
+                logger.info(
+                    "Task completion handled successfully",
+                    extra={"context": {"task_id": task_id}},
+                )
                 return OperationResult.succeed(view_model)
 
+            logger.error(
+                "Task completion failed",
+                extra={
+                    "context": {
+                        "task_id": task_id,
+                        "error": result.error.message,
+                        "error_code": str(result.error.code.name),
+                    }
+                },
+            )
             error_vm = self.presenter.present_error(
                 result.error.message, str(result.error.code.name)
             )
             return OperationResult.fail(error_vm.message, error_vm.code)
 
         except ValueError as e:
+            logger.error(
+                "Validation error in task completion",
+                extra={"context": {"task_id": task_id, "error": str(e)}},
+            )
             error_vm = self.presenter.present_error(str(e), "VALIDATION_ERROR")
             return OperationResult.fail(error_vm.message, error_vm.code)
 
@@ -120,6 +196,23 @@ class TaskController:
         due_date: Optional[str] = None,
     ) -> OperationResult[TaskViewModel]:
         try:
+            logger.info(
+                "Handling task update request",
+                extra={
+                    "context": {
+                        "task_id": task_id,
+                        "update_fields": [
+                            f for f, v in [
+                                ("title", title),
+                                ("description", description),
+                                ("status", status),
+                                ("priority", priority),
+                                ("due_date", due_date),
+                            ] if v is not None
+                        ],
+                    }
+                },
+            )
             # Convert string status/priority to enums if provided
             status_enum = TaskStatus[status.upper()] if status else None
             priority_enum = Priority[priority.upper()] if priority else None
@@ -135,13 +228,31 @@ class TaskController:
             result = self.update_use_case.execute(request)
             if result.is_success:
                 view_model = self.presenter.present_task(result.value)
+                logger.info(
+                    "Task update handled successfully",
+                    extra={"context": {"task_id": task_id}},
+                )
                 return OperationResult.succeed(view_model)
 
+            logger.error(
+                "Task update failed",
+                extra={
+                    "context": {
+                        "task_id": task_id,
+                        "error": result.error.message,
+                        "error_code": str(result.error.code.name),
+                    }
+                },
+            )
             error_vm = self.presenter.present_error(
                 result.error.message, str(result.error.code.name)
             )
             return OperationResult.fail(error_vm.message, error_vm.code)
         except (ValueError, KeyError) as e:
+            logger.error(
+                "Validation error in task update",
+                extra={"context": {"task_id": task_id, "error": str(e)}},
+            )
             error_vm = self.presenter.present_error(str(e), "VALIDATION_ERROR")
             return OperationResult.fail(error_vm.message, error_vm.code)
 
@@ -158,14 +269,36 @@ class TaskController:
             - Failure: Error information formatted for the interface
         """
         try:
+            logger.info(
+                "Handling task deletion request",
+                extra={"context": {"task_id": task_id}},
+            )
             result = self.delete_use_case.execute(UUID(task_id))
             if result.is_success:
+                logger.info(
+                    "Task deletion handled successfully",
+                    extra={"context": {"task_id": task_id}},
+                )
                 return OperationResult.succeed(result.value)
 
+            logger.error(
+                "Task deletion failed",
+                extra={
+                    "context": {
+                        "task_id": task_id,
+                        "error": result.error.message,
+                        "error_code": str(result.error.code.name),
+                    }
+                },
+            )
             error_vm = self.presenter.present_error(
                 result.error.message, str(result.error.code.name)
             )
             return OperationResult.fail(error_vm.message, error_vm.code)
         except ValueError as e:
+            logger.error(
+                "Validation error in task deletion",
+                extra={"context": {"task_id": task_id, "error": str(e)}},
+            )
             error_vm = self.presenter.present_error(str(e), "VALIDATION_ERROR")
             return OperationResult.fail(error_vm.message, error_vm.code)

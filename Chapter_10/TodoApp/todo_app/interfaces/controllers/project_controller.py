@@ -24,6 +24,9 @@ from todo_app.application.use_cases.project_use_cases import (
     UpdateProjectUseCase,
 )
 
+import logging
+
+logger = logging.getLogger(__name__)
 
 @dataclass
 class ProjectController:
@@ -76,19 +79,41 @@ class ProjectController:
             - Failure: Error information formatted for the interface
         """
         try:
+            logger.info(
+                "Handling project creation request",
+                extra={"context": {"name": name}},
+            )
             request = CreateProjectRequest(name=name, description=description)
             result = self.create_use_case.execute(request)
 
             if result.is_success:
                 view_model = self.presenter.present_project(result.value)
+                logger.info(
+                    "Project creation handled successfully",
+                    extra={"context": {"project_id": str(result.value.id)}},
+                )
                 return OperationResult.succeed(view_model)
 
+            logger.error(
+                "Project creation failed",
+                extra={
+                    "context": {
+                        "name": name,
+                        "error": result.error.message,
+                        "error_code": str(result.error.code.name),
+                    }
+                },
+            )
             error_vm = self.presenter.present_error(
                 result.error.message, str(result.error.code.name)
             )
             return OperationResult.fail(error_vm.message, error_vm.code)
 
         except ValueError as e:
+            logger.error(
+                "Validation error in project creation",
+                extra={"context": {"name": name, "error": str(e)}},
+            )
             error_vm = self.presenter.present_error(str(e), "VALIDATION_ERROR")
             return OperationResult.fail(error_vm.message, error_vm.code)
 
@@ -111,19 +136,41 @@ class ProjectController:
             - Failure: Error information formatted for the interface
         """
         try:
+            logger.info(
+                "Handling project completion request",
+                extra={"context": {"project_id": project_id}},
+            )
             request = CompleteProjectRequest(project_id=project_id, completion_notes=notes)
             result = self.complete_use_case.execute(request)
 
             if result.is_success:
                 view_model = self.presenter.present_project(result.value)
+                logger.info(
+                    "Project completion handled successfully",
+                    extra={"context": {"project_id": project_id}},
+                )
                 return OperationResult.succeed(view_model)
 
+            logger.error(
+                "Project completion failed",
+                extra={
+                    "context": {
+                        "project_id": project_id,
+                        "error": result.error.message,
+                        "error_code": str(result.error.code.name),
+                    }
+                },
+            )
             error_vm = self.presenter.present_error(
                 result.error.message, str(result.error.code.name)
             )
             return OperationResult.fail(error_vm.message, error_vm.code)
 
         except ValueError as e:
+            logger.error(
+                "Validation error in project completion",
+                extra={"context": {"project_id": project_id, "error": str(e)}},
+            )
             error_vm = self.presenter.present_error(str(e), "VALIDATION_ERROR")
             return OperationResult.fail(error_vm.message, error_vm.code)
 
@@ -140,18 +187,40 @@ class ProjectController:
             - Failure: Error information
         """
         try:
+            logger.info(
+                "Handling project retrieval request",
+                extra={"context": {"project_id": project_id}},
+            )
             result = self.get_use_case.execute(project_id)
 
             if result.is_success:
                 view_model = self.presenter.present_project(result.value)
+                logger.info(
+                    "Project retrieval handled successfully",
+                    extra={"context": {"project_id": project_id}},
+                )
                 return OperationResult.succeed(view_model)
 
+            logger.error(
+                "Project retrieval failed",
+                extra={
+                    "context": {
+                        "project_id": project_id,
+                        "error": result.error.message,
+                        "error_code": str(result.error.code.name),
+                    }
+                },
+            )
             error_vm = self.presenter.present_error(
                 result.error.message, str(result.error.code.name)
             )
             return OperationResult.fail(error_vm.message, error_vm.code)
 
         except ValueError as e:
+            logger.error(
+                "Validation error in project retrieval",
+                extra={"context": {"project_id": project_id, "error": str(e)}},
+            )
             error_vm = self.presenter.present_error(str(e), "VALIDATION_ERROR")
             return OperationResult.fail(error_vm.message, error_vm.code)
 
@@ -164,12 +233,26 @@ class ProjectController:
             - Success: List of ProjectViewModel objects
             - Failure: Error information
         """
+        logger.info("Handling project list request")
         result = self.list_use_case.execute()
 
         if result.is_success:
             view_models = [self.presenter.present_project(proj) for proj in result.value]
+            logger.info(
+                "Project list handled successfully",
+                extra={"context": {"count": len(view_models)}},
+            )
             return OperationResult.succeed(view_models)
 
+        logger.error(
+            "Project list failed",
+            extra={
+                "context": {
+                    "error": result.error.message,
+                    "error_code": str(result.error.code.name),
+                }
+            },
+        )
         error_vm = self.presenter.present_error(result.error.message, str(result.error.code.name))
         return OperationResult.fail(error_vm.message, error_vm.code)
 
@@ -193,6 +276,15 @@ class ProjectController:
             - Failure: Error information
         """
         try:
+            logger.info(
+                "Handling project update request",
+                extra={
+                    "context": {
+                        "project_id": project_id,
+                        "update_fields": [f for f, v in [("name", name), ("description", description)] if v is not None],
+                    }
+                },
+            )
             request = UpdateProjectRequest(
                 project_id=project_id,
                 name=name,
@@ -202,13 +294,31 @@ class ProjectController:
 
             if result.is_success:
                 view_model = self.presenter.present_project(result.value)
+                logger.info(
+                    "Project update handled successfully",
+                    extra={"context": {"project_id": project_id}},
+                )
                 return OperationResult.succeed(view_model)
 
+            logger.error(
+                "Project update failed",
+                extra={
+                    "context": {
+                        "project_id": project_id,
+                        "error": result.error.message,
+                        "error_code": str(result.error.code.name),
+                    }
+                },
+            )
             error_vm = self.presenter.present_error(
                 result.error.message, str(result.error.code.name)
             )
             return OperationResult.fail(error_vm.message, error_vm.code)
 
         except ValueError as e:
+            logger.error(
+                "Validation error in project update",
+                extra={"context": {"project_id": project_id, "error": str(e)}},
+            )
             error_vm = self.presenter.present_error(str(e), "VALIDATION_ERROR")
             return OperationResult.fail(error_vm.message, error_vm.code)

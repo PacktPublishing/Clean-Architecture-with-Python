@@ -48,6 +48,7 @@ class CompleteTaskUseCase:
         """Execute the use case."""
         try:
             params = request.to_execution_params()
+            logger.info("Completing task", extra={"context": {"task_id": str(params["task_id"])}})
             task = self.task_repository.get(params["task_id"])
 
             # Take snapshot of initial state
@@ -58,14 +59,28 @@ class CompleteTaskUseCase:
                 self.task_repository.save(task)
                 self.notification_service.notify_task_completed(task)
 
+                logger.info(
+                    "Task completed successfully",
+                    extra={
+                        "context": {
+                            "task_id": str(task.id),
+                            "completion_notes": params["completion_notes"],
+                        }
+                    },
+                )
                 return Result.success(TaskResponse.from_entity(task))
 
             except (ValidationError, BusinessRuleViolation) as e:
                 # Restore task state
+                logger.error(
+                    "Failed to complete task",
+                    extra={"context": {"task_id": str(task.id), "error": str(e)}},
+                )
                 self.task_repository.save(task_snapshot)
                 raise  # Re-raise the exception to be caught by outer try block
 
         except TaskNotFoundError:
+            logger.error("Task not found", extra={"context": {"task_id": str(params["task_id"])}})
             return Result.failure(Error.not_found("Task", str(params["task_id"])))
         except ValidationError as e:
             return Result.failure(Error.validation_error(str(e)))
@@ -139,7 +154,7 @@ class GetTaskUseCase:
 
     task_repository: TaskRepository
 
-    def execute(self, task_id: UUID) -> Result[TaskResponse]:
+    def execute(self, task_id: UUID) -> Result:
         """
         Get details for a specific task.
 
@@ -152,9 +167,11 @@ class GetTaskUseCase:
             - Failure: Error information
         """
         try:
+            logger.info("Retrieving task details", extra={"context": {"task_id": str(task_id)}})
             task = self.task_repository.get(task_id)
             return Result.success(TaskResponse.from_entity(task))
         except TaskNotFoundError:
+            logger.error("Task not found", extra={"context": {"task_id": str(task_id)}})
             return Result.failure(Error.not_found("Task", str(task_id)))
 
 
@@ -165,28 +182,48 @@ class UpdateTaskUseCase:
     task_repository: TaskRepository
     notification_service: NotificationPort
 
-    def execute(self, request: UpdateTaskRequest) -> Result[TaskResponse]:
+    def execute(self, request: UpdateTaskRequest) -> Result:
         try:
             params = request.to_execution_params()
+            logger.info("Updating task", extra={"context": {"task_id": str(params["task_id"])}})
             task = self.task_repository.get(params["task_id"])
 
-            if params.get("title") is not None:
-                task.title = params["title"]
-            if params.get("description") is not None:
-                task.description = params["description"]
-            if params.get("status") is not None:
-                task.status = params["status"]
-            if params.get("priority") is not None:
-                task.priority = params["priority"]
-                if task.priority == Priority.HIGH:
-                    self.notification_service.notify_task_high_priority(task)
-            if "deadline" in params:
-                task.due_date = params["deadline"]
+            # Take snapshot of initial state
+            task_snapshot = deepcopy(task)
 
-            self.task_repository.save(task)
-            return Result.success(TaskResponse.from_entity(task))
+            try:
+                if "title" in params:
+                    task.update_title(params["title"])
+                if "description" in params:
+                    task.update_description(params["description"])
+                if "priority" in params:
+                    task.update_priority(Priority(params["priority"]))
+                if "due_date" in params:
+                    task.update_due_date(params["due_date"])
+
+                self.task_repository.save(task)
+                logger.info(
+                    "Task updated successfully",
+                    extra={
+                        "context": {
+                            "task_id": str(task.id),
+                            "updated_fields": [k for k in params.keys() if k != "task_id"],
+                        }
+                    },
+                )
+                return Result.success(TaskResponse.from_entity(task))
+
+            except (ValidationError, BusinessRuleViolation) as e:
+                # Restore task state
+                logger.error(
+                    "Failed to update task",
+                    extra={"context": {"task_id": str(task.id), "error": str(e)}},
+                )
+                self.task_repository.save(task_snapshot)
+                raise
 
         except TaskNotFoundError:
+            logger.error("Task not found", extra={"context": {"task_id": str(params["task_id"])}})
             return Result.failure(Error.not_found("Task", str(params["task_id"])))
         except ValidationError as e:
             return Result.failure(Error.validation_error(str(e)))
@@ -200,7 +237,7 @@ class DeleteTaskUseCase:
 
     task_repository: TaskRepository
 
-    def execute(self, task_id: UUID) -> Result[DeletionOutcome]:
+    def execute(self, task_id: UUID) -> Result:
         """Execute the use case.
 
         Args:
@@ -210,9 +247,11 @@ class DeleteTaskUseCase:
             Result containing DeletionResult if successful
         """
         try:
-            # Verify task exists before deletion
-            self.task_repository.get(task_id)
+            logger.info("Deleting task", extra={"context": {"task_id": str(task_id)}})
+            self.task_repository.get(task_id)  # Verify exists
             self.task_repository.delete(task_id)
+            logger.info("Task deleted successfully", extra={"context": {"task_id": str(task_id)}})
             return Result.success(DeletionOutcome(task_id))
         except TaskNotFoundError:
+            logger.error("Task not found", extra={"context": {"task_id": str(task_id)}})
             return Result.failure(Error.not_found("Task", str(task_id)))
