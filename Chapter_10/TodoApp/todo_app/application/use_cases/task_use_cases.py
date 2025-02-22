@@ -82,7 +82,7 @@ class CreateTaskUseCase:
         try:
             logger.info(
                 "Creating new task",
-                extra={"title": request.title, "project_id": request.project_id},
+                extra={"context": {"title": request.title, "project_id": request.project_id}},
             )
 
             params = request.to_execution_params()
@@ -94,7 +94,9 @@ class CreateTaskUseCase:
                 try:
                     self.project_repository.get(project_id)  # Verify exists
                 except ProjectNotFoundError:
-                    logger.error("Project not found", extra={"project_id": str(project_id)})
+                    logger.error(
+                        "Project not found", extra={"context": {"project_id": str(project_id)}}
+                    )
                     return Result.failure(Error.not_found("Project", str(project_id)))
 
             task = Task(
@@ -110,19 +112,24 @@ class CreateTaskUseCase:
             logger.info(
                 "Task created successfully",
                 extra={
-                    "task_id": str(task.id),
-                    "project_id": str(project_id),
-                    "priority": task.priority.name,
+                    "context": {
+                        "task_id": str(task.id),
+                        "project_id": str(project_id),
+                        "title": task.title,
+                        "priority": task.priority.name,
+                    }
                 },
             )
 
             return Result.success(TaskResponse.from_entity(task))
 
         except ValidationError as e:
-            logger.error("Task creation validation error", extra={"error": str(e)})
+            logger.error("Task creation validation error", extra={"context": {"error": str(e)}})
             return Result.failure(Error.validation_error(str(e)))
         except BusinessRuleViolation as e:
-            logger.error("Task creation business rule violation", extra={"error": str(e)})
+            logger.error(
+                "Task creation business rule violation", extra={"context": {"error": str(e)}}
+            )
             return Result.failure(Error.business_rule_violation(str(e)))
 
 
