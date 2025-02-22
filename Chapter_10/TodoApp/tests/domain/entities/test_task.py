@@ -3,7 +3,6 @@ from uuid import UUID
 
 import pytest
 
-from todo_app.domain.entities.project import Project
 from todo_app.application.dtos.task_dtos import CreateTaskRequest
 from todo_app.application.repositories.task_repository import TaskRepository
 from todo_app.infrastructure.persistence.file import FileProjectRepository
