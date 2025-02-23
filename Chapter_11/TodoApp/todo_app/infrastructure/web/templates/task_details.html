@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Task Details</h5>
+            <a href="{{ url_for('todo.index') }}" class="btn btn-outline-secondary btn-sm">Back to Projects</a>
+        </div>
+        <div class="card-body">
+            <h3 class="card-title">{{ task.title }}</h3>
+            <p class="card-text">{{ task.description }}</p>
+            
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <h6>Status</h6>
+                    <p><span class="badge bg-primary">{{ task.status_display }}</span></p>
+                    
+                    <h6>Priority</h6>
+                    <p><span class="badge bg-info">{{ task.priority_display }}</span></p>
+                </div>
+                <div class="col-md-6">
+                    {% if task.due_date_display %}
+                    <h6>Due Date</h6>
+                    <p>{{ task.due_date_display }}</p>
+                    {% endif %}
+                    
+                    {% if task.completion_info %}
+                    <h6>Completion Info</h6>
+                    <p>{{ task.completion_info }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
