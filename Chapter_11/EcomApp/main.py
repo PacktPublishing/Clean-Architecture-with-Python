@@ -1,5 +1,5 @@
 # order_system/main.py
-from .web.app import create_app
+from order_system.web.app import create_app
 
 app = create_app()
 

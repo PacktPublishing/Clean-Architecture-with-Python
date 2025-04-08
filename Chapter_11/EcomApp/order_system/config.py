@@ -1,6 +1,5 @@
 # order_system/config.py
 import os
-from pathlib import Path
 
 
 class Config:

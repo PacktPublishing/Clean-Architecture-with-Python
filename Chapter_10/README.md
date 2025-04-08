@@ -3,37 +3,21 @@
 The code exampes from the chapter can be found in the order of appearance in the files with numeric indexes (ex:
 `00_error_class.py`)
 
-## Companion task management application
 ## Running the Task Management Web Application
 
-### Prerequisites
-- Python 3.13 or higher
-- Optional: SendGrid account and API key (for email notifications)
-
-### Installation
-1. Clone the repository
-2. Create and activate a virtual environment:
-```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
-3. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
+Ensure you have followed the instructions in the [Getting started](../README.md#2-getting-started) section to set up your environment.
 
 ### Configuration
 The application supports configuration through environment variables:
 
 ```bash
-# Repository Configuration
+# Repository Configuration options
 export TODO_REPOSITORY_TYPE="memory"  # or "file"
-export TODO_DATA_DIR="repo_data"      # used with file repository
-export TODO_LOG_DIR="logs"            # log directory path
-export TODO_LOG_FILE="app.log"        # log file path
+export TODO_DATA_DIR="repo_data"      # used if `file` is selected for TODO_REPOSITORY_TYPE
 
 # Optional: Email Notification Configuration
 # Will default to (offline) NotificationRecorder if not set
+# To set up sendgrid notifications, you will need set up a [SendGrid account](https://sendgrid.com/en-us/solutions/email-api) (There is a free tier available)
 export TODO_SENDGRID_API_KEY="your_api_key"
 export TODO_NOTIFICATION_EMAIL="recipient@example.com"
 ```
@@ -42,7 +26,14 @@ export TODO_NOTIFICATION_EMAIL="recipient@example.com"
 ```bash
 cd Chapter_10/TodoApp
 pytest
-python web_main.py
-# OR
+```
+#### running the CLI
+```bash
 python cli_main.py
+```
+#### running the Web
+```bash
+python web_main.py
+
+# navigate to http://127.0.0.1:5000
 ```

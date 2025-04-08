@@ -4,3 +4,4 @@ The code exampes from the chapter can be found in the order of appearance in the
 `00_error_class.py`)
 
 ## Companion task management application
+No companion application code in this chapter.

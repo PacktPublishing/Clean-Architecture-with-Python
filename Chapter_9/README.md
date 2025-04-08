@@ -5,22 +5,12 @@ The code exampes from the chapter can be found in the order of appearance in the
 
 ## Companion task management application
 
-## Running the Task Management Web Application
+Ensure you have followed the instructions in the [Getting started](../README.md#2-getting-started) section to set up your environment.
 
-### Prerequisites
-- Python 3.13 or higher
-- Optional: SendGrid account and API key (for email notifications)
-
-### Installation
-1. Clone the repository
-2. Create and activate a virtual environment:
+Execute all tests using pytest:
 ```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
-3. Install dependencies:
-```bash
-pip install -r requirements.txt
+cd Chapter_9/TodoApp
+pytest
 ```
 
 ### Configuration
@@ -41,5 +31,6 @@ export TODO_NOTIFICATION_EMAIL="recipient@example.com"
 ```bash
 cd Chapter_9/TodoApp
 pytest
+
 python web_main.py
 ```
