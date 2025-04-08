@@ -1,10 +1,9 @@
 # todo_app/tests/application/test_dtos.py
 """Tests for DTO validation logic."""
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
-
 from todo_app.application.dtos.project_dtos import (
     CompleteProjectRequest,
     CreateProjectRequest,
@@ -33,12 +32,9 @@ class TestCompleteTaskRequest:
 
     def test_completion_notes_too_long(self):
         """Test validation of completion notes length."""
-        with pytest.raises(
-            ValueError, match="Completion notes cannot exceed 1000 characters"
-        ):
+        with pytest.raises(ValueError, match="Completion notes cannot exceed 1000 characters"):
             CompleteTaskRequest(
-                task_id="123e4567-e89b-12d3-a456-426614174000",
-                completion_notes="x" * 1001,
+                task_id="123e4567-e89b-12d3-a456-426614174000", completion_notes="x" * 1001
             )
 
 
@@ -48,7 +44,7 @@ class TestCreateTaskRequest:
         request = CreateTaskRequest(
             title="Test Task",
             description="Test Description",
-            due_date=(datetime.now() + timedelta(days=1)).isoformat(),
+            due_date=(datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
             priority="HIGH",
             project_id="123e4567-e89b-12d3-a456-426614174000",
         )
@@ -62,16 +58,12 @@ class TestCreateTaskRequest:
 
     def test_title_too_long(self):
         """Test validation of title length."""
-        with pytest.raises(
-            ValueError, match="Title cannot exceed 200 characters"
-        ):
+        with pytest.raises(ValueError, match="Title cannot exceed 200 characters"):
             CreateTaskRequest(title="x" * 201, description="Test")
 
     def test_description_too_long(self):
         """Test validation of description length."""
-        with pytest.raises(
-            ValueError, match="Description cannot exceed 2000 characters"
-        ):
+        with pytest.raises(ValueError, match="Description cannot exceed 2000 characters"):
             CreateTaskRequest(title="Test", description="x" * 2001)
 
 
@@ -93,24 +85,19 @@ class TestSetTaskPriorityRequest:
         """Test validation of invalid priority."""
         with pytest.raises(ValueError, match="Priority must be one of:"):
             SetTaskPriorityRequest(
-                task_id="123e4567-e89b-12d3-a456-426614174000",
-                priority="INVALID",
+                task_id="123e4567-e89b-12d3-a456-426614174000", priority="INVALID"
             )
 
     def test_empty_priority(self):
         """Test validation of empty priority."""
         with pytest.raises(ValueError, match="Priority must be one of:"):
-            SetTaskPriorityRequest(
-                task_id="123e4567-e89b-12d3-a456-426614174000", priority="   "
-            )
+            SetTaskPriorityRequest(task_id="123e4567-e89b-12d3-a456-426614174000", priority="   ")
 
 
 class TestCreateProjectRequest:
     def test_valid_request(self):
         """Test creating request with valid data."""
-        request = CreateProjectRequest(
-            name="Test Project", description="Test Description"
-        )
+        request = CreateProjectRequest(name="Test Project", description="Test Description")
         assert request.name == "Test Project"
         assert request.description == "Test Description"
 
@@ -121,16 +108,12 @@ class TestCreateProjectRequest:
 
     def test_name_too_long(self):
         """Test validation of name length."""
-        with pytest.raises(
-            ValueError, match="Project name cannot exceed 100 characters"
-        ):
+        with pytest.raises(ValueError, match="Project name cannot exceed 100 characters"):
             CreateProjectRequest(name="x" * 101, description="Test")
 
     def test_description_too_long(self):
         """Test validation of description length."""
-        with pytest.raises(
-            ValueError, match="Description cannot exceed 2000 characters"
-        ):
+        with pytest.raises(ValueError, match="Description cannot exceed 2000 characters"):
             CreateProjectRequest(name="Test", description="x" * 2001)
 
 
@@ -151,12 +134,9 @@ class TestCompleteProjectRequest:
 
     def test_completion_notes_too_long(self):
         """Test validation of completion notes length."""
-        with pytest.raises(
-            ValueError, match="Completion notes cannot exceed 1000 characters"
-        ):
+        with pytest.raises(ValueError, match="Completion notes cannot exceed 1000 characters"):
             CompleteProjectRequest(
-                project_id="123e4567-e89b-12d3-a456-426614174000",
-                completion_notes="x" * 1001,
+                project_id="123e4567-e89b-12d3-a456-426614174000", completion_notes="x" * 1001
             )
 
 
@@ -166,7 +146,7 @@ def test_execution_params_conversion():
     task_request = CreateTaskRequest(
         title="Test Task",
         description="Test Description",
-        due_date=(datetime.now() + timedelta(days=1)).isoformat(),
+        due_date=(datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
         priority="HIGH",
         project_id="123e4567-e89b-12d3-a456-426614174000",
     )
@@ -178,9 +158,7 @@ def test_execution_params_conversion():
     assert "project_id" in task_params
 
     # Test CreateProjectRequest conversion
-    project_request = CreateProjectRequest(
-        name="Test Project", description="Test Description"
-    )
+    project_request = CreateProjectRequest(name="Test Project", description="Test Description")
     project_params = project_request.to_execution_params()
     assert project_params["name"] == "Test Project"
     assert project_params["description"] == "Test Description"

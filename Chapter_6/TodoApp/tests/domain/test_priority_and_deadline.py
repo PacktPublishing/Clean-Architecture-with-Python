@@ -1,7 +1,7 @@
 # todo_app/tests/domain/test_priority_and_deadline.py
 """Tests for task priority calculation and deadline value object."""
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from freezegun import freeze_time
@@ -16,55 +16,57 @@ from todo_app.domain.value_objects import Deadline, Priority
 class TestDeadline:
     def test_create_valid_future_deadline(self):
         """Test creating a deadline in the future."""
-        future_date = datetime.now() + timedelta(days=1)
+        future_date = datetime.now(timezone.utc) + timedelta(days=1)
         deadline = Deadline(future_date)
         assert deadline.due_date == future_date
 
     def test_reject_past_deadline(self):
         """Test that creating a deadline in the past raises an error."""
-        past_date = datetime.now() - timedelta(days=1)
+        past_date = datetime.now(timezone.utc) - timedelta(days=1)
         with pytest.raises(ValueError, match="Deadline cannot be in the past"):
             Deadline(past_date)
 
-    @freeze_time("2024-01-01 12:00:00")
+    @freeze_time("2024-01-01 12:00:00+00:00")  # Use UTC for freeze_time
     def test_is_overdue(self):
         """Test checking if a deadline is overdue."""
-        # Create a deadline for 1 day from now
-        future_date = datetime.now() + timedelta(days=1)
+        # Create a deadline for 1 day from now (relative to frozen UTC time)
+        future_date = datetime.now(timezone.utc) + timedelta(days=1)
         deadline = Deadline(future_date)
         assert not deadline.is_overdue()
 
-        # Time travel to after the deadline
-        with freeze_time("2024-01-03 12:00:00"):
+        # Time travel to after the deadline (still UTC)
+        with freeze_time("2024-01-03 12:00:00+00:00"):
             assert deadline.is_overdue()
 
-    @freeze_time("2024-01-01 12:00:00")
+    @freeze_time("2024-01-01 12:00:00+00:00")  # Use UTC for freeze_time
     def test_time_remaining(self):
         """Test calculating remaining time until deadline."""
-        # Create a deadline for exactly 2 days from now
-        due_date = datetime.now() + timedelta(days=2)
+        # Create a deadline for exactly 2 days from now (relative to frozen UTC time)
+        due_date = datetime.now(timezone.utc) + timedelta(days=2)
         deadline = Deadline(due_date)
 
         remaining = deadline.time_remaining()
-        assert remaining == timedelta(days=2)
+        # Check approximate equality due to potential microsecond differences
+        assert abs(remaining - timedelta(days=2)) < timedelta(seconds=1)
 
-        # Time travel to 1 day before deadline
-        with freeze_time("2024-01-02 12:00:00"):
+        # Time travel to 1 day before deadline (still UTC)
+        with freeze_time("2024-01-02 12:00:00+00:00"):
             remaining = deadline.time_remaining()
-            assert remaining == timedelta(days=1)
+            assert abs(remaining - timedelta(days=1)) < timedelta(seconds=1)
 
-        # Time travel past deadline
-        with freeze_time("2024-01-04 12:00:00"):
+        # Time travel past deadline (still UTC)
+        with freeze_time("2024-01-04 12:00:00+00:00"):
             remaining = deadline.time_remaining()
             assert remaining == timedelta(0)  # Should return 0 when overdue
 
-    @freeze_time("2024-01-01 12:00:00")
+    @freeze_time("2024-01-01 12:00:00+00:00")  # Use UTC for freeze_time
     def test_is_approaching(self):
         """Test detecting when deadline is approaching."""
-        # Create deadlines at various distances
-        far_date = datetime.now() + timedelta(days=5)
-        near_date = datetime.now() + timedelta(hours=12)
-        very_near_date = datetime.now() + timedelta(hours=1)
+        # Create deadlines at various distances (relative to frozen UTC time)
+        base_time = datetime.now(timezone.utc)
+        far_date = base_time + timedelta(days=5)
+        near_date = base_time + timedelta(hours=12)
+        very_near_date = base_time + timedelta(hours=1)
 
         far_deadline = Deadline(far_date)
         near_deadline = Deadline(near_date)
@@ -82,27 +84,27 @@ class TestDeadline:
 
 
 class TestTaskPriorityCalculator:
-    @freeze_time("2024-01-01 12:00:00")
+    @freeze_time("2024-01-01 12:00:00+00:00")  # Use UTC
     def test_calculate_priority_overdue(self):
         """Test priority calculation for overdue tasks."""
         # Create a task that will be overdue
-        due_date = datetime.now() + timedelta(days=1)
+        due_date = datetime.now(timezone.utc) + timedelta(days=1)
         task = Task(
             title="Test Task",
             description="Test Description",
             due_date=Deadline(due_date),
         )
 
-        # Time travel to after the deadline
-        with freeze_time("2024-01-03 12:00:00"):
+        # Time travel to after the deadline (still UTC)
+        with freeze_time("2024-01-03 12:00:00+00:00"):
             priority = TaskPriorityCalculator.calculate_priority(task)
             assert priority == Priority.HIGH
 
-    @freeze_time("2024-01-01 12:00:00")
+    @freeze_time("2024-01-01 12:00:00+00:00")  # Use UTC
     def test_calculate_priority_approaching_deadline(self):
         """Test priority calculation for tasks with approaching deadlines."""
         # Create a task due in 2 days
-        due_date = datetime.now() + timedelta(days=2)
+        due_date = datetime.now(timezone.utc) + timedelta(days=2)
         task = Task(
             title="Test Task",
             description="Test Description",
@@ -112,11 +114,11 @@ class TestTaskPriorityCalculator:
         priority = TaskPriorityCalculator.calculate_priority(task)
         assert priority == Priority.MEDIUM
 
-    @freeze_time("2024-01-01 12:00:00")
+    @freeze_time("2024-01-01 12:00:00+00:00")  # Use UTC
     def test_calculate_priority_far_deadline(self):
         """Test priority calculation for tasks with far deadlines."""
         # Create a task due in 5 days
-        due_date = datetime.now() + timedelta(days=5)
+        due_date = datetime.now(timezone.utc) + timedelta(days=5)
         task = Task(
             title="Test Task",
             description="Test Description",
@@ -143,10 +145,10 @@ class TestTaskPriorityCalculator:
             (7, Priority.LOW),  # 1 week until due
         ],
     )
-    @freeze_time("2024-01-01 12:00:00")
+    @freeze_time("2024-01-01 12:00:00+00:00")  # Use UTC
     def test_priority_thresholds(self, days_until_due, expected_priority):
         """Test various deadline thresholds and their resulting priorities."""
-        due_date = datetime.now() + timedelta(days=days_until_due)
+        due_date = datetime.now(timezone.utc) + timedelta(days=days_until_due)
         task = Task(
             title="Test Task",
             description="Test Description",

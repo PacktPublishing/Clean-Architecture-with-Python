@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import UUID, uuid4
 
 from freezegun import freeze_time
@@ -39,7 +39,7 @@ def test_check_deadlines_no_approaching_deadlines():
     use_case = CheckDeadlinesUseCase(repo, notifications)
 
     # Create tasks with deadlines well in the future
-    far_future_date = datetime.now() + timedelta(days=10)
+    far_future_date = datetime.now(timezone.utc) + timedelta(days=10)
     task1 = Task(
         title="Future Task 1",
         description="Test",
@@ -71,8 +71,8 @@ def test_check_deadlines_approaching_deadlines():
     use_case = CheckDeadlinesUseCase(repo, notifications)
 
     # Create tasks with various deadlines
-    approaching_date = datetime.now() + timedelta(hours=23)  # Within 1 day
-    future_date = datetime.now() + timedelta(days=5)  # Not approaching
+    approaching_date = datetime.now(timezone.utc) + timedelta(hours=23)  # Within 1 day
+    future_date = datetime.now(timezone.utc) + timedelta(days=5)  # Not approaching
 
     task1 = Task(
         title="Approaching Task",
@@ -111,13 +111,13 @@ def test_check_deadlines_custom_threshold():
         title="Two Days Task",
         description="Test",
         project_id=uuid4(),
-        due_date=Deadline(datetime.now() + timedelta(days=2)),
+        due_date=Deadline(datetime.now(timezone.utc) + timedelta(days=2)),
     )
     four_days = Task(
         title="Four Days Task",
         description="Test",
         project_id=uuid4(),
-        due_date=Deadline(datetime.now() + timedelta(days=4)),
+        due_date=Deadline(datetime.now(timezone.utc) + timedelta(days=4)),
     )
 
     repo.save(two_days)
@@ -140,7 +140,7 @@ def test_check_deadlines_completed_tasks():
     use_case = CheckDeadlinesUseCase(repo, notifications)
 
     # Create a completed task with an approaching deadline
-    approaching_date = datetime.now() + timedelta(hours=12)
+    approaching_date = datetime.now(timezone.utc) + timedelta(hours=12)
     task = Task(
         title="Completed Task",
         description="Test",
@@ -165,7 +165,7 @@ def test_check_deadlines_multiple_notifications():
     use_case = CheckDeadlinesUseCase(repo, notifications)
 
     # Create multiple tasks with approaching deadlines
-    base_time = datetime.now()
+    base_time = datetime.now(timezone.utc)
     tasks = []
     for hours in [12, 18, 22]:  # All within 24 hours
         task = Task(
@@ -220,7 +220,7 @@ def test_check_deadlines_handles_notification_errors():
     use_case = CheckDeadlinesUseCase(repo, notifications)
 
     # Create a task with approaching deadline
-    due_date = datetime.now() + timedelta(hours=12)
+    due_date = datetime.now(timezone.utc) + timedelta(hours=12)
     task = Task(
         title="Test Task",
         description="Test",

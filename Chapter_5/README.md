@@ -14,5 +14,5 @@ Ensure you have followed the instructions in the [Getting started](../README.md#
 
 ```shell
 > cd TodoApp
-> python -m pytest
+> pytest
 ```
