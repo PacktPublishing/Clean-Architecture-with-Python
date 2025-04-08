@@ -1,5 +1,10 @@
 # Chapter 7
 
+The code exampes from the chapter can be found in the order of appearance in the files with numeric indexes (ex:
+`00_error_class.py`)
+
+## Companion task management application
+
 This chapter completes the Clean Architecture implementation of the task management application by adding the Frameworks and Drivers layer. The code demonstrates how to integrate external frameworks, databases, and services while maintaining clean architectural boundaries.
 
 ## Running the Task Management Application

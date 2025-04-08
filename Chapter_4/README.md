@@ -1,20 +1,11 @@
 # Chapter 4
 
-You will find code more integral to the Todo application in the `TodoApp` folder
 
-```text
-└── todo_app
-    ├── application
-    ├── domain
-    │   ├── entities
-    │   │   ├── entity.py
-    │   │   ├── project.py
-    │   │   └── task.py
-    │   ├── services
-    │   │   └── task_priority_calculator.py
-    │   └── value_objects.py
-    ├── infrastructure
-    └── interfaces
-```
+The code exampes from the chapter can be found in the order of appearance in the files with numeric indexes (ex:
+`00_error_class.py`)
 
-The rest of the examples can be found in the top level files here in order of appearance in the chapter
+
+## Companion task management application
+
+At this point, the task management application is not yet implemented to a level that can be run. But the folder structure and files are present for you to explore (`TodoApp` folder).
+

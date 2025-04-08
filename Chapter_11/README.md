@@ -1,5 +1,10 @@
 # Chapter 11
 
+The code exampes from the chapter can be found in the order of appearance in the files with numeric indexes (ex:
+`00_error_class.py`)
+
+## Companion task management application
+
 This folder contains a proof-of-concept implementation of the order processing system described in Chapter 11 of "Clean Architecture with Python." It demonstrates the transformation from a legacy application with architectural violations to a clean, well-structured system following Clean Architecture principles.
 
 ## Overview

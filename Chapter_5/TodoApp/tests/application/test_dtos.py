@@ -1,7 +1,7 @@
 # todo_app/tests/application/test_dtos.py
 """Tests for DTO validation logic."""
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from todo_app.application.dtos.project_dtos import (
@@ -45,7 +45,7 @@ class TestCreateTaskRequest:
         request = CreateTaskRequest(
             title="Test Task",
             description="Test Description",
-            due_date=(datetime.now() + timedelta(days=1)).isoformat(),
+            due_date=(datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
             priority="HIGH",
             project_id="123e4567-e89b-12d3-a456-426614174000"
         )
@@ -156,7 +156,7 @@ def test_execution_params_conversion():
     task_request = CreateTaskRequest(
         title="Test Task",
         description="Test Description",
-        due_date=(datetime.now() + timedelta(days=1)).isoformat(),
+        due_date=(datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
         priority="HIGH",
         project_id="123e4567-e89b-12d3-a456-426614174000"
     )

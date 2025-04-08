@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from freezegun import freeze_time
@@ -41,7 +41,7 @@ def test_check_deadlines_no_approaching_deadlines():
     use_case = CheckDeadlinesUseCase(repo, notifications)
 
     # Create tasks with deadlines well in the future
-    far_future_date = datetime.now() + timedelta(days=10)
+    far_future_date = datetime.now(timezone.utc) + timedelta(days=10)
     task1 = Task(
         title="Future Task 1",
         description="Test",
@@ -71,8 +71,8 @@ def test_check_deadlines_approaching_deadlines():
     use_case = CheckDeadlinesUseCase(repo, notifications)
 
     # Create tasks with various deadlines
-    approaching_date = datetime.now() + timedelta(hours=23)  # Within 1 day
-    future_date = datetime.now() + timedelta(days=5)  # Not approaching
+    approaching_date = datetime.now(timezone.utc) + timedelta(hours=23)  # Within 1 day
+    future_date = datetime.now(timezone.utc) + timedelta(days=5)  # Not approaching
 
     task1 = Task(
         title="Approaching Task",
@@ -112,12 +112,12 @@ def test_check_deadlines_custom_threshold():
     two_days = Task(
         title="Two Days Task",
         description="Test",
-        due_date=Deadline(datetime.now() + timedelta(days=2)),
+        due_date=Deadline(datetime.now(timezone.utc) + timedelta(days=2)),
     )
     four_days = Task(
         title="Four Days Task",
         description="Test",
-        due_date=Deadline(datetime.now() + timedelta(days=4)),
+        due_date=Deadline(datetime.now(timezone.utc) + timedelta(days=4)),
     )
 
     repo.save(two_days)
@@ -140,7 +140,7 @@ def test_check_deadlines_completed_tasks():
     use_case = CheckDeadlinesUseCase(repo, notifications)
 
     # Create a completed task with an approaching deadline
-    approaching_date = datetime.now() + timedelta(hours=12)
+    approaching_date = datetime.now(timezone.utc) + timedelta(hours=12)
     task = Task(
         title="Completed Task",
         description="Test",
@@ -164,7 +164,7 @@ def test_check_deadlines_multiple_notifications():
     use_case = CheckDeadlinesUseCase(repo, notifications)
 
     # Create multiple tasks with approaching deadlines
-    base_time = datetime.now()
+    base_time = datetime.now(timezone.utc)
     tasks = []
     for hours in [12, 18, 22]:  # All within 24 hours
         task = Task(
@@ -220,7 +220,7 @@ def test_check_deadlines_handles_notification_errors():
     use_case = CheckDeadlinesUseCase(repo, notifications)
 
     # Create a task with approaching deadline
-    due_date = datetime.now() + timedelta(hours=12)
+    due_date = datetime.now(timezone.utc) + timedelta(hours=12)
     task = Task(
         title="Test Task", description="Test", due_date=Deadline(due_date)
     )
@@ -253,3 +253,52 @@ def test_check_deadlines_handles_task_not_found():
     assert result.error.code == ErrorCode.NOT_FOUND
     assert "Task" in result.error.message
     assert not notifications.deadline_warnings
+
+
+@freeze_time("2024-01-10 12:00:00")
+def test_check_deadlines_with_approaching_deadlines():
+    """Test checking deadlines with tasks approaching their deadlines."""
+    repo = InMemoryTaskRepository()
+    notifications = NotificationRecorder()
+    use_case = CheckDeadlinesUseCase(repo, notifications)
+
+    # Create tasks with deadlines
+    approaching_deadline = datetime.now(timezone.utc) + timedelta(hours=12)
+    far_future_date = datetime.now(timezone.utc) + timedelta(days=10)
+    past_due_date = datetime.now(timezone.utc) - timedelta(days=1)
+
+    # Task 1: Approaching deadline
+    task1 = Task(
+        title="Approaching Task",
+        description="Test",
+        due_date=Deadline(approaching_deadline),
+    )
+
+    # Task 2: Future task
+    task2 = Task(
+        title="Future Task",
+        description="Test",
+        due_date=Deadline(far_future_date),
+    )
+
+    # Task 3: Past due (should not trigger warning, handled elsewhere)
+    task3 = Task(title="Past Due Task", description="Test", due_date=None)  # No deadline initially
+    # We need to bypass the Deadline validation for past dates to test the use case logic
+    # In a real scenario, past due tasks might be handled differently or filtered before this check.
+    # For this test, we manually set the _due_date attribute after creation.
+    task3._due_date = Deadline(datetime.now(timezone.utc) + timedelta(days=1)) # Create a valid future deadline first
+    # Now, directly modify the internal attribute to simulate a past due date
+    # This is generally discouraged but necessary here to isolate test conditions.
+    object.__setattr__(task3._due_date, 'due_date', past_due_date)
+
+    repo.save(task1)
+    repo.save(task2)
+    repo.save(task3)
+
+    result = use_case.execute()
+
+    assert result.is_success
+    assert result.value["notifications_sent"] == 1
+    assert len(notifications.deadline_warnings) == 1
+    assert notifications.deadline_warnings[0][0] == task1.id
+    assert notifications.deadline_warnings[0][1] == 0  # Less than 1 day remaining

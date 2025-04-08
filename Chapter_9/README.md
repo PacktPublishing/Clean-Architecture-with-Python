@@ -1,6 +1,9 @@
 # Chapter 9 : Adding Web UI: Clean Architecture's Interface Flexibility
 
+The code exampes from the chapter can be found in the order of appearance in the files with numeric indexes (ex:
+`00_error_class.py`)
 
+## Companion task management application
 
 ## Running the Task Management Web Application
 
