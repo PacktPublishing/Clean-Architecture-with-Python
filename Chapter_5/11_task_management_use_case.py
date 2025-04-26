@@ -30,7 +30,7 @@ class TaskManagementUseCase:
             self.task_repository.save(task)
 
             # Required notification
-            self.notification_service.notify_task_completed(task.id)
+            self.notification_service.notify_task_completed(task)
 
             # Optional integrations
             if analytics := self._optional_services.get("analytics"):

@@ -58,7 +58,7 @@ Once your virtual environment is activated, install the required packages using 
 > .venv\Scripts\activate
 ```
 
-**Installing dependencies with `pip`:**
+**run `pip install`:**
 
 ```shell
 # Ensure pip is up-to-date

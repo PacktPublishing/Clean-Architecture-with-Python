@@ -43,7 +43,7 @@ class CompleteProjectUseCase:
             for task in project.incomplete_tasks:
                 task.complete()
                 self.task_repository.save(task)
-                self.notification_service.notify_task_completed(task.id)
+                self.notification_service.notify_task_completed(task)
 
             # Complete the project itself
             project.mark_completed(notes=completion_notes)

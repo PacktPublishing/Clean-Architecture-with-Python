@@ -6,7 +6,7 @@ from uuid import UUID
 class NotificationPort(ABC):
 
     @abstractmethod
-    def notify_task_completed(self, task_id: UUID) -> None:
+    def notify_task_completed(self, task: Task) -> None:
         """Notify when a task is completed"""
         pass
 

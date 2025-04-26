@@ -30,7 +30,7 @@ class SetTaskPriorityUseCase:
             self.task_repository.save(task)
 
             if task.priority == Priority.HIGH:
-                self.notification_service.notify_task_high_priority(task.id)
+                self.notification_service.notify_task_high_priority(task)
 
             return Result.success(TaskResponse.from_entity(task))
         except ValidationError as e:
