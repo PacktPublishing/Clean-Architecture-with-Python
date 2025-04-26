@@ -10,19 +10,15 @@ When exploring the code related to a specific chapter, you should focus on the c
 
 All code has been tested and verified to work with Python 3.13 on MacOS.  With the nature of Python the code should work on other platforms, but this has not been verified.
 
-## Getting started
+## 1. Installing dependencies
 
-Follow these steps to set up your environment and run the code:
-
-### 1. Installing dependencies
-
-#### Dependency management
+### Dependency management
 
 To simplify setup, this repository uses a single `pyproject.toml` file located at the root. This file defines the dependencies for the *entire* project, effectively installing the union of all packages required across all chapters.
 
 We use [UV](https://docs.astral.sh/uv/) for managing dependencies. However, a `requirements.txt` file is also provided for users who prefer to use `pip` on its own.
 
-#### Installing dependencies with UV
+### Installing dependencies with UV
 If you have `uv` installed, you can use it to create the environment:
 
 ```shell
@@ -43,7 +39,7 @@ Once your virtual environment is activated, install the required packages using 
 > uv sync
 ```
 
-#### Installing dependencies with `pip`
+### Installing dependencies with `pip`
 
 **Creating a virtual environment:**
 
@@ -68,7 +64,7 @@ Once your virtual environment is activated, install the required packages using 
 > pip install -r requirements.txt
 ```
 
-### 2. Explore and Run Chapter Code
+## 2. Explore and Run Chapter Code
 
 Navigate to the specific chapter folder you're interested in. Each chapter has its own `README.md` file with instructions for running the application or tests for that chapter.
 
