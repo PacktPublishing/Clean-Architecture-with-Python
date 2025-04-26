@@ -6,15 +6,37 @@ This repository contains the companion application code for the book: "[Clean Ar
 
 The code is organized by chapter. Each `Chapter_X` folder (e.g., `Chapter_1`, `Chapter_2`) represents a progressive snapshot of the application's state at the end of that corresponding chapter in the book.
 
-When exploring the code related to a specific chapter, you should focus on the contents within that chapter's directory.
+An example of the structure of a chapter folder is shown below:
+- `README.md`: Contains instructions for running the application or tests for that chapter.
+- `chapter_code_excerpts`: Contains the code snippets from the chapter in the order of appearance in the files with numeric indexes (ex: `00_error_class.py`). This is provided for reference and is not meant to be runnable.
+- `TodoApp`: If applicable, contains the companion application code for that chapter. This code is runnable (to the extent of its implementation for the given chapter).
 
-All code has been tested and verified to work with Python 3.13 on MacOS.  With the nature of Python the code should work on other platforms, but this has not been verified.
+```
+Chapter_4/
+├── README.md
+│
+├── chapter_code_excerpts
+│   ├── 00_create_new_task.py
+│   ├── 01_create_task_business_rules.py
+│   ├── 02_value_objects_in_clean_arch.py
+│   ├── 03_project_usage.py
+│   ├── ...
+│
+└── TodoApp
+    └── todo_app
+        ├── application
+        ├── domain
+        ├── infrastructure
+        └── interfaces
+```
+
+All code has been tested and verified to work with Python 3.13 on MacOS and Windows.  With the nature of Python the code should work on other platforms that support a Python runtime, but this has not been verified.
 
 ## 1. Installing dependencies
 
 ### Dependency management
 
-To simplify setup, this repository uses a single `pyproject.toml` file located at the root. This file defines the dependencies for the *entire* project, effectively installing the union of all packages required across all chapters.
+To simplify setup, this repository uses a single `pyproject.toml` file located at the root of the repository. This file defines the dependencies for the *entire* project, effectively installing the union of all packages required across all chapters.
 
 We use [UV](https://docs.astral.sh/uv/) for managing dependencies. However, a `requirements.txt` file is also provided for users who prefer to use `pip` on its own.
 

@@ -1,11 +1,12 @@
 # Chapter 10
 
-The code exampes from the chapter can be found in the order of appearance in the files with numeric indexes (ex:
-`00_error_class.py`)
+## Chapter code excerpts
+The code snippets from the chapter can be found in the order of appearance in the `chapter_code_excerpts` folder. Examples: `00_error_class.py`  
+These are provided for reference and are not meant to be runnable.
 
 ## Running the Task Management Web Application
 
-Ensure you have followed the instructions in the [Getting started](../README.md#2-getting-started) section to set up your environment.
+Ensure you have followed the instructions in the repository's [README](../README.md) section to set up your environment.
 
 ### Configuration
 The application supports configuration through environment variables:

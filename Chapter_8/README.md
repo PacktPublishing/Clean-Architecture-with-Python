@@ -1,7 +1,8 @@
 # Chapter 8: Test-Driven Clean Architecture: Ensuring Python Code Quality
 
-The code exampes from the chapter can be found in the order of appearance in the files with numeric indexes (ex:
-`00_error_class.py`)
+## Chapter code excerpts
+The code snippets from the chapter can be found in the order of appearance in the `chapter_code_excerpts` folder. Examples: `00_error_class.py`  
+These are provided for reference and are not meant to be runnable.
 
 ## Companion task management application
 
@@ -10,7 +11,7 @@ This chapter explores how Clean Architecture's explicit boundaries and separatio
 
 ## Running the Tests
 
-Ensure you have followed the instructions in the [Getting started](../README.md#2-getting-started) section to set up your environment.
+Ensure you have followed the instructions in the repository's [README](../README.md) section to set up your environment.
 
 Execute all tests using pytest:
 ```bash
