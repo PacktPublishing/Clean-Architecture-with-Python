@@ -5,7 +5,7 @@ class User:
         self.email = email
         self.posts = []
 
-    def create_post(self, content: str):
+    def create_post(self, content: str) -> dict:
         post = {"id": len(self.posts) + 1, "content": content, "likes": 0}
         self.posts.append(post)
         return post

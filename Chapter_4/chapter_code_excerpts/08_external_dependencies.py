@@ -1,7 +1,7 @@
 # In the Domain layer (e.g., todo_app/domain/repositories/task_repository.py)
 from abc import ABC, abstractmethod
 
-from Chapter_4.TodoApp.todo_app.domain.entities.task import Task
+from todo_app.domain.entities.task import Task
 
 
 class TaskRepository(ABC):

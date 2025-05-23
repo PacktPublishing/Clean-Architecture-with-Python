@@ -1,8 +1,8 @@
 from dataclasses import dataclass, field
 from typing import Optional
 
-from Chapter_4.TodoApp.todo_app.domain.entities.entity import Entity
-from Chapter_4.TodoApp.todo_app.domain.value_objects import (
+from todo_app.domain.entities.entity import Entity
+from todo_app.domain.value_objects import (
     Deadline,
     Priority,
     TaskStatus,

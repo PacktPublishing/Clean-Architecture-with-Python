@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
-from Chapter_4.TodoApp.todo_app.domain.entities.entity import Entity
-from Chapter_4.TodoApp.todo_app.domain.value_objects import Priority, Deadline
+from todo_app.domain.entities.entity import Entity
+from todo_app.domain.value_objects import Priority, Deadline
 
 
 @dataclass

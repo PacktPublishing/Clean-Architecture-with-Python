@@ -1,7 +1,7 @@
 from uuid import UUID
 
-from Chapter_4.TodoApp.todo_app.domain.entities.task import Task
-from Chapter_4.TodoApp.todo_app.domain.value_objects import Priority
+from todo_app.domain.entities.task import Task
+from todo_app.domain.value_objects import Priority
 
 
 class TaskFactory:

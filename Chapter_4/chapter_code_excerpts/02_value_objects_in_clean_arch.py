@@ -1,6 +1,6 @@
 # Using string (problematic)
-from Chapter_4.TodoApp.todo_app.domain.entities.task import Task
-from Chapter_4.TodoApp.todo_app.domain.value_objects import TaskStatus
+from todo_app.domain.entities.task import Task
+from todo_app.domain.value_objects import TaskStatus
 
 task = Task("Complete project", "The important project")
 task.status = "Finished"  # Allowed, but invalid

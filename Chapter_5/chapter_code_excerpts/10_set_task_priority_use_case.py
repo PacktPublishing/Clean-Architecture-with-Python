@@ -5,7 +5,7 @@ from todo_app.application.dtos.task_dtos import (
     TaskResponse,
     SetTaskPriorityRequest,
 )
-from todo_app.application.serviceports.notifications import (
+from todo_app.application.service_ports.notifications import (
     NotificationPort,
 )
 from todo_app.application.repositories.task_repository import (

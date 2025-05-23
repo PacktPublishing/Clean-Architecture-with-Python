@@ -11,7 +11,7 @@ class UserService:
 
 
 @dataclass(frozen=True)
-class ProjectCompletionResponse:
+class CompleteProjectResponse:
     """Data structure for project completion responses"""
 
     id: str

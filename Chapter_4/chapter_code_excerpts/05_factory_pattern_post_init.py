@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from Chapter_4.TodoApp.todo_app.domain.entities.entity import Entity
+from todo_app.domain.entities.entity import Entity
 
 
 @dataclass

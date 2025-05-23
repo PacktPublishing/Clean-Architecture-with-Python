@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from todo_app.domain.entities.task import Task
 from todo_app.application.common.result import Result, Error
 from todo_app.application.dtos.project_dtos import (
     CompleteProjectRequest,
@@ -45,8 +46,6 @@ class CompleteProjectUseCase:
             return Result.success(response)
 
         except ProjectNotFoundError:
-            return Result.failure(
-                Error.not_found("Project", str(params["project_id"]))
-            )
+            return Result.failure(Error.not_found("Project", str(params["project_id"])))
         except ValidationError as e:
             return Result.failure(Error.validation_error(str(e)))
