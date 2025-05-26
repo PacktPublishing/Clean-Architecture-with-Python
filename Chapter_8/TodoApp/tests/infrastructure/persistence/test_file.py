@@ -14,7 +14,7 @@ def repository(tmp_path):  # tmp_path is a pytest builtin for temp dirs
     return FileTaskRepository(data_dir=tmp_path)
 
 
-def test_repository_handles_project_task_relationships(tmp_path):
+def test_repo_handles_project_task_relationships(tmp_path):
     """Integration test verifying repository handles entity relationships."""
     # Arrange
     task_repo = FileTaskRepository(tmp_path)

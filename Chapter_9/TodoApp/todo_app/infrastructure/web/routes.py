@@ -47,7 +47,7 @@ def new_project():
     return render_template("project_form.html")
 
 
-@bp.route("/projects/<project_id>/task  s/new", methods=["GET", "POST"])
+@bp.route("/projects/<project_id>/tasks/new", methods=["GET", "POST"])
 def new_task(project_id):
     """Create a new task in a project."""
     if request.method == "POST":
@@ -82,7 +82,7 @@ def edit_task(task_id):
         # Handle empty due date - if the field is empty or just whitespace, set to empty string
         # This ensures UpdateTaskRequest gets an empty string which it will convert to None
         due_date = request.form.get("due_date", "").strip()
-        
+
         result = app.task_controller.handle_update(
             task_id=task_id,
             title=request.form["title"],
@@ -112,12 +112,12 @@ def edit_task(task_id):
 def complete_task(task_id):
     """Complete a task."""
     app = current_app.config["APP_CONTAINER"]
-    
+
     # Complete the task with optional notes
     result = app.task_controller.handle_complete(
         task_id=task_id, notes=request.form.get("completion_notes")
     )
-    
+
     if not result.is_success:
         error = task_presenter.present_error(result.error.message)
         flash(error.message, "error")

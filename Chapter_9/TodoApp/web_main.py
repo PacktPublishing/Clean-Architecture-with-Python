@@ -9,15 +9,12 @@ from todo_app.interfaces.presenters.web import WebProjectPresenter, WebTaskPrese
 
 
 def main():
-    """Run the web interface."""
-    notification_service = create_notification_service()
-    task_presenter = WebTaskPresenter()
-    project_presenter = WebProjectPresenter()
+    """Create and run the Flask web application."""
 
     app_container = create_application(
-        notification_service=notification_service,
-        task_presenter=task_presenter,
-        project_presenter=project_presenter,
+        notification_service=create_notification_service(),
+        task_presenter=WebTaskPresenter(),
+        project_presenter=WebProjectPresenter(),
     )
     web_app = create_web_app(app_container)
     web_app.run(debug=True)

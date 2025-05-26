@@ -5,10 +5,9 @@ def _create_task(self) -> None:
 
     # Project selection is optional - defaults to Inbox
     if click.confirm("Assign to a specific project?", default=False):
-    project_id = self._select_project()
+        project_id = self._select_project()
 
+    # Inbox handling in use case
     result = self.app.task_controller.handle_create(
-    title=title,
-    description=description,
-    project_id=project_id # Inbox handling in use case
+        title=title, description=description, project_id=project_id
     )
