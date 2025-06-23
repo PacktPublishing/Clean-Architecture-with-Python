@@ -183,9 +183,9 @@ Navigate to the specific chapter folder you're interested in. Each chapter has i
   </details>
 
 <details> 
-  <summary><h2>Get to know Authors</h2></summary>
+  <summary><h2>Get to know Author</h2></summary>
 
-_Sam Keen_ Sam Keen is a software engineering leader with over 25 years of experience. A polyglot developer who's leveraged Python in varied contexts from small startups to industry giants including AWS, Lululemon, and Nike. His expertise spans cloud architecture, continuous delivery, and building scalable systems. At Lululemon, Sam pioneered the company's first cloud-native software development team, setting standards for distributed cloud architecture within the company. Currently, Sam leverages Python to design and implement internal platform engineering solutions for AWS focusing on clean architecture principles and maintainable code. Sam resides in the US Pacific Northwest with his wife and two cats.
+_Sam Keen_ is a software engineering leader with over 25 years of experience. A polyglot developer who's leveraged Python in varied contexts from small startups to industry giants including AWS, Lululemon, and Nike. His expertise spans cloud architecture, continuous delivery, and building scalable systems. At Lululemon, Sam pioneered the company's first cloud-native software development team, setting standards for distributed cloud architecture within the company. Currently, Sam leverages Python to design and implement internal platform engineering solutions for AWS focusing on clean architecture principles and maintainable code. Sam resides in the US Pacific Northwest with his wife and two cats.
 
 </details>
 <details> 
